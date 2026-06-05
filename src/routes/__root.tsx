@@ -61,8 +61,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Atelier — Gestão da Escola de Costura" },
+      { title: "Instituto Moda e Costura" },
       { name: "description", content: "Dashboard para gestão de alunos, turmas, mensalidades e cobranças da escola de costura." },
+      { property: "og:title", content: "Instituto Moda e Costura" },
+      { name: "twitter:title", content: "Instituto Moda e Costura" },
+      { property: "og:description", content: "Dashboard para gestão de alunos, turmas, mensalidades e cobranças da escola de costura." },
+      { name: "twitter:description", content: "Dashboard para gestão de alunos, turmas, mensalidades e cobranças da escola de costura." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f0d9207d-1f09-4500-8774-adcc598f4af2/id-preview-4223fea1--69506387-9cdd-47a5-b985-b44735320965.lovable.app-1780667089183.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f0d9207d-1f09-4500-8774-adcc598f4af2/id-preview-4223fea1--69506387-9cdd-47a5-b985-b44735320965.lovable.app-1780667089183.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
