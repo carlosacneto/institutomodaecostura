@@ -18,6 +18,11 @@ import { formatBRL, today } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/alunos")({ component: AlunosPage });
 
+function normalizarMensalidade(valor: number | null | undefined): number {
+  if (valor == null) return 0;
+  return valor >= 1000 ? valor / 100 : valor;
+}
+
 type Aluno = {
   id: string; nome: string; telefone: string | null; email: string | null;
   status: string; data_matricula: string | null; observacoes: string | null;
@@ -130,7 +135,7 @@ function AlunosPage() {
                         <div>{a.telefone ?? "—"}</div>
                       </TableCell>
                       <TableCell>{turma?.nome ?? "—"}</TableCell>
-                      <TableCell>{a.valor_mensalidade != null ? formatBRL(a.valor_mensalidade) : "—"}</TableCell>
+                      <TableCell>{a.valor_mensalidade != null ? formatBRL(normalizarMensalidade(a.valor_mensalidade)) : "—"}</TableCell>
                       <TableCell><StatusBadge status={a.status} /></TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">

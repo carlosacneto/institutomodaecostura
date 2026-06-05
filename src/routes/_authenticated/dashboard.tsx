@@ -2,12 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, TrendingUp, Wallet, AlertTriangle, Clock } from "lucide-react";
+import { Users, GraduationCap, TrendingUp, Wallet, TriangleAlert as AlertTriangle, Clock } from "lucide-react";
 import { formatBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
+
+function normalizarMensalidade(valor: number | null | undefined): number {
+  if (valor == null) return 0;
+  return valor >= 1000 ? valor / 100 : valor;
+}
 
 function Dashboard() {
   const { data, isLoading } = useQuery({
@@ -18,23 +23,28 @@ function Dashboard() {
       const fim = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
       const hoje = now.toISOString().slice(0, 10);
 
-      const [alunos, turmas, prevista, recebida, vencidas, pendentes, perTurma] = await Promise.all([
-        supabase.from("alunos").select("id", { count: "exact", head: true }).eq("status", "ativo"),
+      const [alunosAtivos, turmas, recebida, vencidas, pendentes, perTurma] = await Promise.all([
+        supabase.from("alunos").select("id, valor_mensalidade").eq("status", "ativo"),
         supabase.from("turmas").select("id", { count: "exact", head: true }).eq("status", "ativa"),
-        supabase.from("mensalidades").select("valor").gte("data_vencimento", ini).lte("data_vencimento", fim),
         supabase.from("mensalidades").select("valor").gte("data_pagamento", ini).lte("data_pagamento", fim).eq("status", "pago"),
         supabase.from("mensalidades").select("id", { count: "exact", head: true }).lt("data_vencimento", hoje).neq("status", "pago"),
         supabase.from("mensalidades").select("id", { count: "exact", head: true }).eq("status", "pendente"),
         supabase.from("turmas").select("id, nome, alunos(count)"),
       ]);
 
-      const sum = (rows: { valor: number }[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.valor || 0), 0);
+      const sumRecebida = (rows: { valor: number }[] | null) =>
+        (rows ?? []).reduce((s, r) => s + Number(r.valor || 0), 0);
+
+      const receitaPrevista = (alunosAtivos.data ?? []).reduce(
+        (s, a) => s + normalizarMensalidade((a as any).valor_mensalidade),
+        0,
+      );
 
       return {
-        alunosAtivos: alunos.count ?? 0,
+        alunosAtivos: (alunosAtivos.data ?? []).length,
         turmasAtivas: turmas.count ?? 0,
-        receitaPrevista: sum(prevista.data as any),
-        receitaRecebida: sum(recebida.data as any),
+        receitaPrevista,
+        receitaRecebida: sumRecebida(recebida.data as any),
         vencidas: vencidas.count ?? 0,
         pendentes: pendentes.count ?? 0,
         porTurma: (perTurma.data ?? []).map((t: any) => ({ nome: t.nome, total: t.alunos?.[0]?.count ?? 0 })),
