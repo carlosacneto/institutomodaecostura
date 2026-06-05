@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/alunos")({ component: Alun
 type Aluno = {
   id: string; nome: string; telefone: string | null; email: string | null;
   status: string; data_matricula: string | null; observacoes: string | null;
-  turma_id: string | null; created_at: string;
+  turma_id: string | null; created_at: string; valor_mensalidade: number | null;
 };
 
 function AlunosPage() {
@@ -110,15 +110,16 @@ function AlunosPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Turma</TableHead>
+                  <TableHead>Mensalidade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
                 ) : filtrados.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum aluno encontrado.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum aluno encontrado.</TableCell></TableRow>
                 ) : filtrados.map(a => {
                   const turma = turmas.find((t: any) => t.id === a.turma_id);
                   return (
@@ -129,6 +130,7 @@ function AlunosPage() {
                         <div>{a.telefone ?? "—"}</div>
                       </TableCell>
                       <TableCell>{turma?.nome ?? "—"}</TableCell>
+                      <TableCell>{a.valor_mensalidade != null ? formatBRL(a.valor_mensalidade) : "—"}</TableCell>
                       <TableCell><StatusBadge status={a.status} /></TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -198,6 +200,10 @@ function AlunoForm({ open, onOpenChange, aluno, turmas }: { open: boolean; onOpe
                 {turmas.map(t => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Valor da mensalidade</Label>
+            <Input type="number" step="0.01" placeholder="0,00" value={(form as any).valor_mensalidade ?? ""} onChange={e => setForm({ ...form, valor_mensalidade: e.target.value === "" ? null : Number(e.target.value) } as any)} />
           </div>
           <div className="space-y-2">
             <Label>Status</Label>

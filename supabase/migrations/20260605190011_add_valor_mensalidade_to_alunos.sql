@@ -1,0 +1,1 @@
+ALTER TABLE alunos ADD COLUMN IF NOT EXISTS valor_mensalidade numeric(10,2) NULL;
