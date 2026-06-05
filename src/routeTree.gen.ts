@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTurmasRouteImport } from './routes/_authenticated/turmas'
+import { Route as AuthenticatedPagamentosRouteImport } from './routes/_authenticated/pagamentos'
 import { Route as AuthenticatedMensalidadesRouteImport } from './routes/_authenticated/mensalidades'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAlunosRouteImport } from './routes/_authenticated/alunos'
@@ -34,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedTurmasRoute = AuthenticatedTurmasRouteImport.update({
   id: '/turmas',
   path: '/turmas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPagamentosRoute = AuthenticatedPagamentosRouteImport.update({
+  id: '/pagamentos',
+  path: '/pagamentos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMensalidadesRoute =
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/alunos': typeof AuthenticatedAlunosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
+  '/pagamentos': typeof AuthenticatedPagamentosRoute
   '/turmas': typeof AuthenticatedTurmasRoute
 }
 export interface FileRoutesByTo {
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/alunos': typeof AuthenticatedAlunosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
+  '/pagamentos': typeof AuthenticatedPagamentosRoute
   '/turmas': typeof AuthenticatedTurmasRoute
 }
 export interface FileRoutesById {
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/_authenticated/alunos': typeof AuthenticatedAlunosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/mensalidades': typeof AuthenticatedMensalidadesRoute
+  '/_authenticated/pagamentos': typeof AuthenticatedPagamentosRoute
   '/_authenticated/turmas': typeof AuthenticatedTurmasRoute
 }
 export interface FileRouteTypes {
@@ -87,9 +96,17 @@ export interface FileRouteTypes {
     | '/alunos'
     | '/dashboard'
     | '/mensalidades'
+    | '/pagamentos'
     | '/turmas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/alunos' | '/dashboard' | '/mensalidades' | '/turmas'
+  to:
+    | '/'
+    | '/auth'
+    | '/alunos'
+    | '/dashboard'
+    | '/mensalidades'
+    | '/pagamentos'
+    | '/turmas'
   id:
     | '__root__'
     | '/'
@@ -98,6 +115,7 @@ export interface FileRouteTypes {
     | '/_authenticated/alunos'
     | '/_authenticated/dashboard'
     | '/_authenticated/mensalidades'
+    | '/_authenticated/pagamentos'
     | '/_authenticated/turmas'
   fileRoutesById: FileRoutesById
 }
@@ -137,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTurmasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pagamentos': {
+      id: '/_authenticated/pagamentos'
+      path: '/pagamentos'
+      fullPath: '/pagamentos'
+      preLoaderRoute: typeof AuthenticatedPagamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mensalidades': {
       id: '/_authenticated/mensalidades'
       path: '/mensalidades'
@@ -165,6 +190,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAlunosRoute: typeof AuthenticatedAlunosRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedMensalidadesRoute: typeof AuthenticatedMensalidadesRoute
+  AuthenticatedPagamentosRoute: typeof AuthenticatedPagamentosRoute
   AuthenticatedTurmasRoute: typeof AuthenticatedTurmasRoute
 }
 
@@ -172,6 +198,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAlunosRoute: AuthenticatedAlunosRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedMensalidadesRoute: AuthenticatedMensalidadesRoute,
+  AuthenticatedPagamentosRoute: AuthenticatedPagamentosRoute,
   AuthenticatedTurmasRoute: AuthenticatedTurmasRoute,
 }
 
