@@ -17,6 +17,7 @@ import { Route as AuthenticatedPagamentosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMensalidadesRouteImport } from './routes/_authenticated/mensalidades'
 import { Route as AuthenticatedImportacaoRouteImport } from './routes/_authenticated/importacao'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCobrancasRouteImport } from './routes/_authenticated/cobrancas'
 import { Route as AuthenticatedAlunosRouteImport } from './routes/_authenticated/alunos'
 
@@ -60,6 +61,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCobrancasRoute = AuthenticatedCobrancasRouteImport.update({
   id: '/cobrancas',
   path: '/cobrancas',
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/alunos': typeof AuthenticatedAlunosRoute
   '/cobrancas': typeof AuthenticatedCobrancasRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/importacao': typeof AuthenticatedImportacaoRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/alunos': typeof AuthenticatedAlunosRoute
   '/cobrancas': typeof AuthenticatedCobrancasRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/importacao': typeof AuthenticatedImportacaoRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
@@ -100,6 +109,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/alunos': typeof AuthenticatedAlunosRoute
   '/_authenticated/cobrancas': typeof AuthenticatedCobrancasRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/importacao': typeof AuthenticatedImportacaoRoute
   '/_authenticated/mensalidades': typeof AuthenticatedMensalidadesRoute
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/alunos'
     | '/cobrancas'
+    | '/configuracoes'
     | '/dashboard'
     | '/importacao'
     | '/mensalidades'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/alunos'
     | '/cobrancas'
+    | '/configuracoes'
     | '/dashboard'
     | '/importacao'
     | '/mensalidades'
@@ -136,6 +148,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/alunos'
     | '/_authenticated/cobrancas'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/importacao'
     | '/_authenticated/mensalidades'
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/cobrancas': {
       id: '/_authenticated/cobrancas'
       path: '/cobrancas'
@@ -227,6 +247,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAlunosRoute: typeof AuthenticatedAlunosRoute
   AuthenticatedCobrancasRoute: typeof AuthenticatedCobrancasRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedImportacaoRoute: typeof AuthenticatedImportacaoRoute
   AuthenticatedMensalidadesRoute: typeof AuthenticatedMensalidadesRoute
@@ -237,6 +258,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAlunosRoute: AuthenticatedAlunosRoute,
   AuthenticatedCobrancasRoute: AuthenticatedCobrancasRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedImportacaoRoute: AuthenticatedImportacaoRoute,
   AuthenticatedMensalidadesRoute: AuthenticatedMensalidadesRoute,
