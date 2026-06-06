@@ -57,7 +57,7 @@ function AuthenticatedLayout() {
             <Scissors className="size-4" />
           </div>
           <div className="leading-tight">
-            <div className="font-display font-semibold text-base">Atelier</div>
+            <div className="font-display font-semibold text-base">Instituto Moda e Costura</div>
             <div className="text-[11px] text-muted-foreground">Escola de Costura</div>
           </div>
         </div>
@@ -90,7 +90,7 @@ function AuthenticatedLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="lg:hidden sticky top-0 z-20 h-14 px-4 flex items-center justify-between bg-background/80 backdrop-blur border-b">
           <button onClick={() => setOpen(true)} aria-label="Menu"><Menu className="size-5" /></button>
-          <div className="flex items-center gap-2 font-display font-semibold"><Scissors className="size-4 text-primary" /> Atelier</div>
+          <div className="flex items-center gap-2 font-display font-semibold"><Scissors className="size-4 text-primary" /> Instituto Moda e Costura</div>
           <div className="w-5" />
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1400px] w-full mx-auto">

@@ -55,7 +55,7 @@ function AuthPage() {
           <div className="size-10 rounded-xl bg-primary-foreground/15 grid place-items-center backdrop-blur">
             <Scissors className="size-5" />
           </div>
-          <span className="font-display text-xl font-semibold">Atelier</span>
+          <span className="font-display text-xl font-semibold">Instituto Moda e Costura</span>
         </div>
         <div className="space-y-4">
           <h1 className="font-display text-5xl font-semibold leading-tight">
@@ -65,7 +65,7 @@ function AuthPage() {
             Alunos, turmas, mensalidades e cobranças automatizadas — num só lugar, com a calma de um bom atelier.
           </p>
         </div>
-        <p className="text-sm text-primary-foreground/70">© Atelier · {new Date().getFullYear()}</p>
+        <p className="text-sm text-primary-foreground/70">© Instituto Moda e Costura · {new Date().getFullYear()}</p>
       </div>
 
       <div className="flex items-center justify-center p-6 sm:p-12">
