@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,14 +16,61 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type TurmaResumo = {
-  nome: string;
-  total: number;
-};
-
 function normalizarMensalidade(valor: number | null | undefined): number {
   if (valor == null) return 0;
   return valor >= 1000 ? valor / 100 : valor;
+}
+
+function classificarTurma(total: number, maiorTurma: number) {
+  const percentual = maiorTurma > 0 ? (total / maiorTurma) * 100 : 0;
+
+  if (percentual >= 100) {
+    return {
+      label: "Muito cheia",
+      card: "border-primary/30 bg-primary/5",
+      badge: "bg-primary/10 text-primary",
+      bar: "bg-primary",
+      text: "text-primary",
+    };
+  }
+
+  if (percentual >= 70) {
+    return {
+      label: "Alta",
+      card: "border-orange-200 bg-orange-50/60",
+      badge: "bg-orange-100 text-orange-700",
+      bar: "bg-orange-500",
+      text: "text-orange-700",
+    };
+  }
+
+  if (percentual >= 40) {
+    return {
+      label: "Média",
+      card: "border-blue-200 bg-blue-50/60",
+      badge: "bg-blue-100 text-blue-700",
+      bar: "bg-blue-500",
+      text: "text-blue-700",
+    };
+  }
+
+  if (percentual >= 15) {
+    return {
+      label: "Baixa",
+      card: "border-green-200 bg-green-50/60",
+      badge: "bg-green-100 text-green-700",
+      bar: "bg-green-500",
+      text: "text-green-700",
+    };
+  }
+
+  return {
+    label: "Muito baixa",
+    card: "border-slate-200 bg-slate-50/60",
+    badge: "bg-slate-100 text-slate-700",
+    bar: "bg-slate-500",
+    text: "text-slate-700",
+  };
 }
 
 function Dashboard() {
@@ -117,14 +164,16 @@ function Dashboard() {
           }).length;
 
           return {
+            id: turma.id,
             nome: turma.nome,
             total,
           };
         })
-        .sort((a, b) => {
-          if (b.total !== a.total) return b.total - a.total;
-          return a.nome.localeCompare(b.nome);
-        });
+        .filter((turma) => turma.total > 0)
+        .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+
+      const totalVinculos = porTurma.reduce((s, turma) => s + turma.total, 0);
+      const maiorTurma = porTurma.length > 0 ? porTurma[0].total : 0;
 
       return {
         alunosAtivos: alunosAtivosData.length,
@@ -134,6 +183,9 @@ function Dashboard() {
         vencidas: vencidas.count ?? 0,
         pendentes: pendentes.count ?? 0,
         porTurma,
+        totalVinculos,
+        totalTurmasComAlunos: porTurma.length,
+        maiorTurma,
       };
     },
   });
@@ -176,15 +228,6 @@ function Dashboard() {
       tone: "warning",
     },
   ];
-
-  const turmas = data?.porTurma ?? [];
-  const turmasComAlunos = turmas.filter((turma) => turma.total > 0);
-  const turmasVazias = turmas.filter((turma) => turma.total === 0);
-  const maiorTotal = Math.max(...turmasComAlunos.map((turma) => turma.total), 1);
-  const totalVinculos = turmasComAlunos.reduce(
-    (soma, turma) => soma + turma.total,
-    0
-  );
 
   return (
     <div className="space-y-6">
@@ -237,65 +280,77 @@ function Dashboard() {
       </div>
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <CardTitle className="font-display">Alunos por turma</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ranking das turmas com alunos ativos vinculados.
+              <p className="text-sm text-muted-foreground mt-1">
+                Clique em uma turma para ver a lista de alunos vinculados.
               </p>
             </div>
 
-            <div className="rounded-full bg-muted px-4 py-2 text-sm font-medium">
-              {totalVinculos} vínculo{totalVinculos === 1 ? "" : "s"}
+            <div className="flex gap-2 flex-wrap">
+              <div className="rounded-full bg-muted px-3 py-1 text-sm">
+                {data?.totalVinculos ?? 0} vínculo
+                {(data?.totalVinculos ?? 0) === 1 ? "" : "s"} totais
+              </div>
+
+              <div className="rounded-full bg-muted px-3 py-1 text-sm">
+                {data?.totalTurmasComAlunos ?? 0} turma
+                {(data?.totalTurmasComAlunos ?? 0) === 1 ? "" : "s"} com alunos
+              </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {isLoading ? (
-            <p className="text-muted-foreground">Carregando turmas...</p>
-          ) : turmas.length === 0 ? (
+        <CardContent>
+          {(data?.porTurma ?? []).length === 0 ? (
             <p className="text-muted-foreground">
-              Nenhuma turma cadastrada ainda.
+              Nenhuma turma com alunos ativos vinculados.
             </p>
           ) : (
             <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Turmas com alunos</h3>
-                  <span className="text-sm text-muted-foreground">
-                    {turmasComAlunos.length} turma
-                    {turmasComAlunos.length === 1 ? "" : "s"}
-                  </span>
-                </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {data!.porTurma.map((turma, index) => {
+                  const maiorTurma = data?.maiorTurma ?? 1;
+                  const totalVinculos = data?.totalVinculos ?? 1;
 
-                {turmasComAlunos.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    Nenhuma turma possui alunos ativos vinculados.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {turmasComAlunos.map((turma, index) => {
-                      const porcentagem = Math.max(
-                        8,
-                        Math.round((turma.total / maiorTotal) * 100)
-                      );
+                  const percentualMaiorTurma =
+                    maiorTurma > 0 ? (turma.total / maiorTurma) * 100 : 0;
 
-                      return (
-                        <div
-                          key={turma.nome}
-                          className="rounded-xl border bg-card p-4"
-                        >
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                  const percentualTotal =
+                    totalVinculos > 0
+                      ? Math.round((turma.total / totalVinculos) * 100)
+                      : 0;
+
+                  const larguraBarra = Math.max(percentualMaiorTurma, 8);
+                  const visual = classificarTurma(turma.total, maiorTurma);
+
+                  return (
+                    <Link
+                      key={turma.id}
+                      to="/turmas/$turmaId"
+                      params={{ turmaId: turma.id }}
+                      className="block"
+                    >
+                      <Card
+                        className={`h-full border shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-md ${visual.card}`}
+                      >
+                        <CardContent className="p-4 space-y-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${visual.badge}`}
+                              >
                                 {index + 1}
-                              </span>
+                              </div>
 
                               <div>
-                                <p className="font-semibold">{turma.nome}</p>
-                                <p className="text-xs text-muted-foreground">
+                                <div className="font-display text-lg font-semibold leading-none">
+                                  {turma.nome}
+                                </div>
+
+                                <p className="text-sm text-muted-foreground mt-1">
                                   {turma.total} aluno
                                   {turma.total === 1 ? "" : "s"} ativo
                                   {turma.total === 1 ? "" : "s"}
@@ -303,49 +358,67 @@ function Dashboard() {
                               </div>
                             </div>
 
-                            <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-                              {turma.total}
-                            </span>
+                            <div className="space-y-2 text-right">
+                              <div className={`rounded-full px-3 py-1 text-xs font-medium ${visual.badge}`}>
+                                {visual.label}
+                              </div>
+
+                              <div className={`text-2xl font-semibold ${visual.text}`}>
+                                {turma.total}
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="h-3 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${porcentagem}%` }}
-                            />
+                          <div className="space-y-2">
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={`h-full rounded-full transition-all ${visual.bar}`}
+                                style={{ width: `${larguraBarra}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                              <span className={visual.text}>
+                                {Math.round(percentualMaiorTurma)}% da maior turma
+                              </span>
+
+                              <span className="text-muted-foreground">
+                                {percentualTotal}% do total
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
 
-              <div className="space-y-3 border-t pt-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Turmas vazias</h3>
-                  <span className="text-sm text-muted-foreground">
-                    {turmasVazias.length} turma
-                    {turmasVazias.length === 1 ? "" : "s"}
-                  </span>
+              <div className="mt-5 flex flex-wrap gap-4 border-t pt-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-primary" />
+                  Muito cheia
                 </div>
 
-                {turmasVazias.length === 0 ? (
-                  <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">
-                    Todas as turmas ativas possuem alunos vinculados.
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {turmasVazias.map((turma) => (
-                      <span
-                        key={turma.nome}
-                        className="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground"
-                      >
-                        {turma.nome}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-orange-500" />
+                  Alta
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-blue-500" />
+                  Média
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-green-500" />
+                  Baixa
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-slate-500" />
+                  Muito baixa
+                </div>
               </div>
             </>
           )}
