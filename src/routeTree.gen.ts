@@ -20,6 +20,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCobrancasRouteImport } from './routes/_authenticated/cobrancas'
 import { Route as AuthenticatedAlunosRouteImport } from './routes/_authenticated/alunos'
+import { Route as AuthenticatedTurmasTurmaIdRouteImport } from './routes/_authenticated/turmas.$turmaId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -77,6 +78,12 @@ const AuthenticatedAlunosRoute = AuthenticatedAlunosRouteImport.update({
   path: '/alunos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTurmasTurmaIdRoute =
+  AuthenticatedTurmasTurmaIdRouteImport.update({
+    id: '/$turmaId',
+    path: '/$turmaId',
+    getParentRoute: () => AuthenticatedTurmasRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,7 +95,8 @@ export interface FileRoutesByFullPath {
   '/importacao': typeof AuthenticatedImportacaoRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/pagamentos': typeof AuthenticatedPagamentosRoute
-  '/turmas': typeof AuthenticatedTurmasRoute
+  '/turmas': typeof AuthenticatedTurmasRouteWithChildren
+  '/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,7 +108,8 @@ export interface FileRoutesByTo {
   '/importacao': typeof AuthenticatedImportacaoRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/pagamentos': typeof AuthenticatedPagamentosRoute
-  '/turmas': typeof AuthenticatedTurmasRoute
+  '/turmas': typeof AuthenticatedTurmasRouteWithChildren
+  '/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,7 +123,8 @@ export interface FileRoutesById {
   '/_authenticated/importacao': typeof AuthenticatedImportacaoRoute
   '/_authenticated/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/_authenticated/pagamentos': typeof AuthenticatedPagamentosRoute
-  '/_authenticated/turmas': typeof AuthenticatedTurmasRoute
+  '/_authenticated/turmas': typeof AuthenticatedTurmasRouteWithChildren
+  '/_authenticated/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/mensalidades'
     | '/pagamentos'
     | '/turmas'
+    | '/turmas/$turmaId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/mensalidades'
     | '/pagamentos'
     | '/turmas'
+    | '/turmas/$turmaId'
   id:
     | '__root__'
     | '/'
@@ -154,6 +166,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mensalidades'
     | '/_authenticated/pagamentos'
     | '/_authenticated/turmas'
+    | '/_authenticated/turmas/$turmaId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,8 +254,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAlunosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/turmas/$turmaId': {
+      id: '/_authenticated/turmas/$turmaId'
+      path: '/$turmaId'
+      fullPath: '/turmas/$turmaId'
+      preLoaderRoute: typeof AuthenticatedTurmasTurmaIdRouteImport
+      parentRoute: typeof AuthenticatedTurmasRoute
+    }
   }
 }
+
+interface AuthenticatedTurmasRouteChildren {
+  AuthenticatedTurmasTurmaIdRoute: typeof AuthenticatedTurmasTurmaIdRoute
+}
+
+const AuthenticatedTurmasRouteChildren: AuthenticatedTurmasRouteChildren = {
+  AuthenticatedTurmasTurmaIdRoute: AuthenticatedTurmasTurmaIdRoute,
+}
+
+const AuthenticatedTurmasRouteWithChildren =
+  AuthenticatedTurmasRoute._addFileChildren(AuthenticatedTurmasRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAlunosRoute: typeof AuthenticatedAlunosRoute
@@ -252,7 +283,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportacaoRoute: typeof AuthenticatedImportacaoRoute
   AuthenticatedMensalidadesRoute: typeof AuthenticatedMensalidadesRoute
   AuthenticatedPagamentosRoute: typeof AuthenticatedPagamentosRoute
-  AuthenticatedTurmasRoute: typeof AuthenticatedTurmasRoute
+  AuthenticatedTurmasRoute: typeof AuthenticatedTurmasRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -263,7 +294,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportacaoRoute: AuthenticatedImportacaoRoute,
   AuthenticatedMensalidadesRoute: AuthenticatedMensalidadesRoute,
   AuthenticatedPagamentosRoute: AuthenticatedPagamentosRoute,
-  AuthenticatedTurmasRoute: AuthenticatedTurmasRoute,
+  AuthenticatedTurmasRoute: AuthenticatedTurmasRouteWithChildren,
 }
 
 const AuthenticatedRouteRouteWithChildren =
