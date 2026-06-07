@@ -16,6 +16,11 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+type TurmaResumo = {
+  nome: string;
+  total: number;
+};
+
 function normalizarMensalidade(valor: number | null | undefined): number {
   if (valor == null) return 0;
   return valor >= 1000 ? valor / 100 : valor;
@@ -74,9 +79,7 @@ function Dashboard() {
           .select("id", { count: "exact", head: true })
           .eq("status", "pendente"),
 
-        supabase
-          .from("aluno_turmas")
-          .select("aluno_id, turma_id"),
+        supabase.from("aluno_turmas").select("aluno_id, turma_id"),
       ]);
 
       if (alunosAtivos.error) throw alunosAtivos.error;
@@ -104,19 +107,24 @@ function Dashboard() {
         0
       );
 
-      const porTurma = turmasAtivasData.map((turma: any) => {
-        const total = alunoTurmasData.filter((vinculo: any) => {
-          return (
-            vinculo.turma_id === turma.id &&
-            alunosAtivosIds.has(vinculo.aluno_id)
-          );
-        }).length;
+      const porTurma = turmasAtivasData
+        .map((turma: any) => {
+          const total = alunoTurmasData.filter((vinculo: any) => {
+            return (
+              vinculo.turma_id === turma.id &&
+              alunosAtivosIds.has(vinculo.aluno_id)
+            );
+          }).length;
 
-        return {
-          nome: turma.nome,
-          total,
-        };
-      });
+          return {
+            nome: turma.nome,
+            total,
+          };
+        })
+        .sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          return a.nome.localeCompare(b.nome);
+        });
 
       return {
         alunosAtivos: alunosAtivosData.length,
@@ -169,6 +177,15 @@ function Dashboard() {
     },
   ];
 
+  const turmas = data?.porTurma ?? [];
+  const turmasComAlunos = turmas.filter((turma) => turma.total > 0);
+  const turmasVazias = turmas.filter((turma) => turma.total === 0);
+  const maiorTotal = Math.max(...turmasComAlunos.map((turma) => turma.total), 1);
+  const totalVinculos = turmasComAlunos.reduce(
+    (soma, turma) => soma + turma.total,
+    0
+  );
+
   return (
     <div className="space-y-6">
       <header>
@@ -195,7 +212,10 @@ function Dashboard() {
           }[s.tone];
 
           return (
-            <Card key={s.label} className="border-border/60 shadow-[var(--shadow-soft)]">
+            <Card
+              key={s.label}
+              className="border-border/60 shadow-[var(--shadow-soft)]"
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {s.label}
@@ -218,29 +238,116 @@ function Dashboard() {
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
         <CardHeader>
-          <CardTitle className="font-display">Alunos por turma</CardTitle>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="font-display">Alunos por turma</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ranking das turmas com alunos ativos vinculados.
+              </p>
+            </div>
+
+            <div className="rounded-full bg-muted px-4 py-2 text-sm font-medium">
+              {totalVinculos} vínculo{totalVinculos === 1 ? "" : "s"}
+            </div>
+          </div>
         </CardHeader>
 
-        <CardContent>
-          {(data?.porTurma ?? []).length === 0 ? (
+        <CardContent className="space-y-6">
+          {isLoading ? (
+            <p className="text-muted-foreground">Carregando turmas...</p>
+          ) : turmas.length === 0 ? (
             <p className="text-muted-foreground">
               Nenhuma turma cadastrada ainda.
             </p>
           ) : (
-            <div className="space-y-2">
-              {data!.porTurma.map((turma) => (
-                <div
-                  key={turma.nome}
-                  className="flex items-center justify-between border-b py-3 last:border-b-0"
-                >
-                  <span className="font-medium">{turma.nome}</span>
-
-                  <span className="rounded-full bg-muted px-3 py-1 text-sm">
-                    {turma.total} aluno{turma.total === 1 ? "" : "s"}
+            <>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Turmas com alunos</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {turmasComAlunos.length} turma
+                    {turmasComAlunos.length === 1 ? "" : "s"}
                   </span>
                 </div>
-              ))}
-            </div>
+
+                {turmasComAlunos.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Nenhuma turma possui alunos ativos vinculados.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {turmasComAlunos.map((turma, index) => {
+                      const porcentagem = Math.max(
+                        8,
+                        Math.round((turma.total / maiorTotal) * 100)
+                      );
+
+                      return (
+                        <div
+                          key={turma.nome}
+                          className="rounded-xl border bg-card p-4"
+                        >
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                                {index + 1}
+                              </span>
+
+                              <div>
+                                <p className="font-semibold">{turma.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {turma.total} aluno
+                                  {turma.total === 1 ? "" : "s"} ativo
+                                  {turma.total === 1 ? "" : "s"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                              {turma.total}
+                            </span>
+                          </div>
+
+                          <div className="h-3 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${porcentagem}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 border-t pt-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Turmas vazias</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {turmasVazias.length} turma
+                    {turmasVazias.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                {turmasVazias.length === 0 ? (
+                  <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">
+                    Todas as turmas ativas possuem alunos vinculados.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {turmasVazias.map((turma) => (
+                      <span
+                        key={turma.nome}
+                        className="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground"
+                      >
+                        {turma.nome}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

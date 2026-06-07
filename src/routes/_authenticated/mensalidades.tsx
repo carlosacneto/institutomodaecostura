@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL, formatDate, today } from "@/lib/format";
 
@@ -54,6 +54,7 @@ function MensalidadesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [filtro, setFiltro] = useState("all");
+  const [busca, setBusca] = useState("");
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["mensalidades"],
@@ -71,23 +72,39 @@ function MensalidadesPage() {
 
   const filtradas = useMemo(() => {
     const hoje = today();
+    const termo = busca.trim().toLowerCase();
 
     return data.filter((m) => {
       const status = m.status ?? "pendente";
       const vencimento = m.data_vencimento ?? "";
 
-      if (filtro === "all") return true;
-      if (filtro === "pago") return status === "pago";
-      if (filtro === "pendente") {
-        return status === "pendente" && vencimento >= hoje;
-      }
-      if (filtro === "vencida") {
-        return status !== "pago" && vencimento < hoje;
-      }
+      const passaFiltroStatus =
+        filtro === "all" ||
+        (filtro === "pago" && status === "pago") ||
+        (filtro === "pendente" && status === "pendente" && vencimento >= hoje) ||
+        (filtro === "vencida" && status !== "pago" && vencimento < hoje);
 
-      return true;
+      if (!passaFiltroStatus) return false;
+
+      if (!termo) return true;
+
+      const textoBusca = [
+        m.nome_aluno,
+        m.telefone,
+        m.turma,
+        m.status,
+        m.valor,
+        m.data_vencimento,
+        m.data_pagamento,
+        m.observacoes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return textoBusca.includes(termo);
     });
-  }, [data, filtro]);
+  }, [data, filtro, busca]);
 
   const marcarComoPaga = useMutation({
     mutationFn: async (id: string) => {
@@ -160,7 +177,17 @@ function MensalidadesPage() {
       </header>
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
-        <CardHeader>
+        <CardHeader className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome, telefone, turma, status ou valor..."
+              className="pl-10"
+            />
+          </div>
+
           <div className="flex gap-3 flex-wrap">
             {[
               { v: "all", l: "Todas" },

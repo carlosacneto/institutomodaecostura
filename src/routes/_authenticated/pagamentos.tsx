@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -11,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Search } from "lucide-react";
 import { formatBRL, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/pagamentos")({
@@ -31,6 +34,8 @@ type Pagamento = {
 };
 
 function PagamentosPage() {
+  const [busca, setBusca] = useState("");
+
   const { data = [], isLoading } = useQuery({
     queryKey: ["pagamentos"],
     queryFn: async () => {
@@ -46,7 +51,34 @@ function PagamentosPage() {
     },
   });
 
-  const total = data.reduce((s, p) => s + Number(p.valor || 0), 0);
+  const pagamentosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+
+    if (!termo) return data;
+
+    return data.filter((p) => {
+      const textoBusca = [
+        p.nome_aluno,
+        p.telefone,
+        p.turma,
+        p.valor,
+        p.data_pagamento,
+        p.data_vencimento,
+        p.status,
+        p.observacoes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return textoBusca.includes(termo);
+    });
+  }, [data, busca]);
+
+  const total = pagamentosFiltrados.reduce(
+    (s, p) => s + Number(p.valor || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -58,13 +90,24 @@ function PagamentosPage() {
       </header>
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
-        <CardHeader>
+        <CardHeader className="space-y-4">
           <CardTitle className="font-display text-lg flex justify-between">
             <span>
-              {data.length} pagamento{data.length === 1 ? "" : "s"}
+              {pagamentosFiltrados.length} pagamento
+              {pagamentosFiltrados.length === 1 ? "" : "s"}
             </span>
             <span className="text-primary">{formatBRL(total)}</span>
           </CardTitle>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome, telefone, turma, valor ou data..."
+              className="pl-10"
+            />
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -92,17 +135,17 @@ function PagamentosPage() {
                       Carregando...
                     </TableCell>
                   </TableRow>
-                ) : data.length === 0 ? (
+                ) : pagamentosFiltrados.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={7}
                       className="text-center py-8 text-muted-foreground"
                     >
-                      Nenhum pagamento registrado.
+                      Nenhum pagamento encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.map((p) => (
+                  pagamentosFiltrados.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell>
                         {p.data_pagamento ? formatDate(p.data_pagamento) : "—"}
