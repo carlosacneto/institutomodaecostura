@@ -16,7 +16,9 @@ import { toast } from "sonner";
 import { callWebhook, loadWebhooks } from "@/lib/webhooks";
 import { formatBRL, today } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/alunos")({ component: AlunosPage });
+export const Route = createFileRoute("/_authenticated/alunos")({
+  component: AlunosPage,
+});
 
 function normalizarMensalidade(valor: number | null | undefined): number {
   if (valor == null) return 0;
@@ -35,9 +37,14 @@ type AlunoTurma = {
 
 type Aluno = {
   id: string;
+  id_planilha: string | null;
   nome: string;
   telefone: string | null;
   email: string | null;
+  cpf: string | null;
+  endereco: string | null;
+  data_nascimento: string | null;
+  dia_vencimento: number | null;
   status: string;
   data_matricula: string | null;
   observacoes: string | null;
@@ -49,6 +56,7 @@ type Aluno = {
 
 function AlunosPage() {
   const qc = useQueryClient();
+
   const [busca, setBusca] = useState("");
   const [filtroTurma, setFiltroTurma] = useState<string>("all");
   const [filtroStatus, setFiltroStatus] = useState<string>("all");
@@ -74,6 +82,7 @@ function AlunosPage() {
         .order("nome");
 
       if (error) throw error;
+
       return data as Aluno[];
     },
   });
@@ -87,31 +96,38 @@ function AlunosPage() {
         .order("nome");
 
       if (error) throw error;
+
       return data as Turma[];
     },
   });
 
-  const filtrados = useMemo(() => alunos.filter(a => {
-    const nome = a.nome ?? "";
-    const email = a.email ?? "";
+  const filtrados = useMemo(() => {
+    return alunos.filter((a) => {
+      const nome = a.nome ?? "";
+      const email = a.email ?? "";
+      const telefone = a.telefone ?? "";
+      const cpf = a.cpf ?? "";
 
-    if (
-      busca &&
-      !nome.toLowerCase().includes(busca.toLowerCase()) &&
-      !email.toLowerCase().includes(busca.toLowerCase())
-    ) {
-      return false;
-    }
+      if (
+        busca &&
+        !nome.toLowerCase().includes(busca.toLowerCase()) &&
+        !email.toLowerCase().includes(busca.toLowerCase()) &&
+        !telefone.toLowerCase().includes(busca.toLowerCase()) &&
+        !cpf.toLowerCase().includes(busca.toLowerCase())
+      ) {
+        return false;
+      }
 
-    if (filtroTurma !== "all") {
-      const temTurma = a.aluno_turmas?.some(at => at.turma_id === filtroTurma);
-      if (!temTurma) return false;
-    }
+      if (filtroTurma !== "all") {
+        const temTurma = a.aluno_turmas?.some((at) => at.turma_id === filtroTurma);
+        if (!temTurma) return false;
+      }
 
-    if (filtroStatus !== "all" && a.status !== filtroStatus) return false;
+      if (filtroStatus !== "all" && a.status !== filtroStatus) return false;
 
-    return true;
-  }), [alunos, busca, filtroTurma, filtroStatus]);
+      return true;
+    });
+  }, [alunos, busca, filtroTurma, filtroStatus]);
 
   const cobrar = useMutation({
     mutationFn: async (a: Aluno) => {
@@ -152,10 +168,12 @@ function AlunosPage() {
           </p>
         </div>
 
-        <Button onClick={() => {
-          setEditing(null);
-          setOpenForm(true);
-        }}>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setOpenForm(true);
+          }}
+        >
           <Plus className="size-4 mr-2" />
           Novo aluno
         </Button>
@@ -168,9 +186,9 @@ function AlunosPage() {
               <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Buscar por nome ou e-mail..."
+                placeholder="Buscar por nome, e-mail, telefone ou CPF..."
                 value={busca}
-                onChange={e => setBusca(e.target.value)}
+                onChange={(e) => setBusca(e.target.value)}
               />
             </div>
 
@@ -180,7 +198,7 @@ function AlunosPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as turmas</SelectItem>
-                {turmas.map(t => (
+                {turmas.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.nome}
                   </SelectItem>
@@ -197,6 +215,7 @@ function AlunosPage() {
                 <SelectItem value="ativo">Ativo</SelectItem>
                 <SelectItem value="inativo">Inativo</SelectItem>
                 <SelectItem value="trancado">Trancado</SelectItem>
+                <SelectItem value="aberto">Aberto</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -209,8 +228,10 @@ function AlunosPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Contato</TableHead>
+                  <TableHead>CPF</TableHead>
                   <TableHead>Turmas</TableHead>
                   <TableHead>Mensalidade</TableHead>
+                  <TableHead>Venc.</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -219,85 +240,100 @@ function AlunosPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filtrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhum aluno encontrado.
                     </TableCell>
                   </TableRow>
-                ) : filtrados.map(a => (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.nome}</TableCell>
-
-                    <TableCell className="text-sm text-muted-foreground">
-                      <div>{a.email ?? "—"}</div>
-                      <div>{a.telefone ?? "—"}</div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {a.aluno_turmas && a.aluno_turmas.length > 0 ? (
-                          a.aluno_turmas.map(at => (
-                            <Badge key={at.turma_id} variant="secondary">
-                              {at.turmas?.nome ?? "Turma"}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
+                ) : (
+                  filtrados.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">
+                        <div>{a.nome}</div>
+                        {a.id_planilha && (
+                          <div className="text-xs text-muted-foreground">
+                            ID: {a.id_planilha}
+                          </div>
                         )}
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell>
-                      {a.valor_mensalidade != null
-                        ? formatBRL(normalizarMensalidade(a.valor_mensalidade))
-                        : "—"}
-                    </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div>{a.email ?? "—"}</div>
+                        <div>{a.telefone ?? "—"}</div>
+                      </TableCell>
 
-                    <TableCell>
-                      <StatusBadge status={a.status} />
-                    </TableCell>
+                      <TableCell>{a.cpf ?? "—"}</TableCell>
 
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Editar"
-                          onClick={() => {
-                            setEditing(a);
-                            setOpenForm(true);
-                          }}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {a.aluno_turmas && a.aluno_turmas.length > 0 ? (
+                            a.aluno_turmas.map((at) => (
+                              <Badge key={at.turma_id} variant="secondary">
+                                {at.turmas?.nome ?? "Turma"}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
 
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Registrar pagamento"
-                          onClick={() => setOpenPay(a)}
-                        >
-                          <Receipt className="size-4" />
-                        </Button>
+                      <TableCell>
+                        {a.valor_mensalidade != null
+                          ? formatBRL(normalizarMensalidade(a.valor_mensalidade))
+                          : "—"}
+                      </TableCell>
 
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          title="Enviar cobrança WhatsApp"
-                          onClick={() => cobrar.mutate(a)}
-                          disabled={cobrar.isPending}
-                        >
-                          <Send className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        {a.dia_vencimento ? `Dia ${a.dia_vencimento}` : "—"}
+                      </TableCell>
+
+                      <TableCell>
+                        <StatusBadge status={a.status} />
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Editar"
+                            onClick={() => {
+                              setEditing(a);
+                              setOpenForm(true);
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Registrar pagamento"
+                            onClick={() => setOpenPay(a)}
+                          >
+                            <Receipt className="size-4" />
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Enviar cobrança WhatsApp"
+                            onClick={() => cobrar.mutate(a)}
+                            disabled={cobrar.isPending}
+                          >
+                            <Send className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -326,6 +362,7 @@ function StatusBadge({ status }: { status: string }) {
     ativo: "bg-success/15 text-success",
     inativo: "bg-muted text-muted-foreground",
     trancado: "bg-warning/20 text-warning-foreground",
+    aberto: "bg-warning/20 text-warning-foreground",
   };
 
   return (
@@ -353,33 +390,63 @@ function AlunoForm({
   const [turmasSelecionadas, setTurmasSelecionadas] = useState<string[]>([]);
 
   useEffect(() => {
-    setForm(aluno ?? {
-      status: "ativo",
-      data_matricula: today(),
-      valor_mensalidade: null,
-    });
+    setForm(
+      aluno ?? {
+        id_planilha: null,
+        nome: "",
+        telefone: null,
+        email: null,
+        cpf: null,
+        endereco: null,
+        data_nascimento: null,
+        dia_vencimento: null,
+        status: "ativo",
+        data_matricula: today(),
+        valor_mensalidade: null,
+        observacoes: null,
+      }
+    );
 
     setTurmasSelecionadas(
-      aluno?.aluno_turmas?.map(at => at.turma_id) ?? []
+      aluno?.aluno_turmas?.map((at) => at.turma_id) ?? []
     );
   }, [aluno, open]);
 
   function toggleTurma(turmaId: string) {
-    setTurmasSelecionadas(prev => {
+    setTurmasSelecionadas((prev) => {
       if (prev.includes(turmaId)) {
-        return prev.filter(id => id !== turmaId);
+        return prev.filter((id) => id !== turmaId);
       }
 
       return [...prev, turmaId];
     });
   }
 
+  function parseNumero(valor: string): number | null {
+    if (!valor) return null;
+
+    const limpo = valor
+      .replace("R$", "")
+      .replace(/\./g, "")
+      .replace(",", ".")
+      .trim();
+
+    const numero = Number(limpo);
+
+    return Number.isNaN(numero) ? null : numero;
+  }
+
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
+        id_planilha: form.id_planilha || null,
         nome: form.nome || null,
         telefone: form.telefone || null,
         email: form.email || null,
+        cpf: form.cpf || null,
+        endereco: form.endereco || null,
+        data_nascimento: form.data_nascimento || null,
+        dia_vencimento: form.dia_vencimento ?? null,
         status: form.status || "ativo",
         data_matricula: form.data_matricula || null,
         observacoes: form.observacoes || null,
@@ -392,14 +459,14 @@ function AlunoForm({
       if (isEdit) {
         const { error } = await supabase
           .from("alunos")
-          .update(payload)
+          .update(payload as any)
           .eq("id", aluno!.id);
 
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from("alunos")
-          .insert(payload)
+          .insert(payload as any)
           .select("id")
           .single();
 
@@ -420,14 +487,14 @@ function AlunoForm({
       if (deleteError) throw deleteError;
 
       if (turmasSelecionadas.length > 0) {
-        const vinculos = turmasSelecionadas.map(turmaId => ({
+        const vinculos = turmasSelecionadas.map((turmaId) => ({
           aluno_id: alunoId,
           turma_id: turmaId,
         }));
 
         const { error: insertTurmasError } = await supabase
           .from("aluno_turmas")
-          .insert(vinculos);
+          .insert(vinculos as any);
 
         if (insertTurmasError) throw insertTurmasError;
       }
@@ -435,6 +502,7 @@ function AlunoForm({
     onSuccess: () => {
       toast.success(isEdit ? "Aluno atualizado" : "Aluno criado");
       qc.invalidateQueries({ queryKey: ["alunos"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onOpenChange(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -442,7 +510,7 @@ function AlunoForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="font-display">
             {isEdit ? "Editar aluno" : "Novo aluno"}
@@ -450,11 +518,29 @@ function AlunoForm({
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>ID da planilha</Label>
+            <Input
+              value={form.id_planilha ?? ""}
+              onChange={(e) => setForm({ ...form, id_planilha: e.target.value })}
+              placeholder="Ex: 714"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>CPF</Label>
+            <Input
+              value={form.cpf ?? ""}
+              onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+              placeholder="000.000.000-00"
+            />
+          </div>
+
           <div className="sm:col-span-2 space-y-2">
             <Label>Nome</Label>
             <Input
               value={form.nome ?? ""}
-              onChange={e => setForm({ ...form, nome: e.target.value })}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
             />
           </div>
 
@@ -462,7 +548,7 @@ function AlunoForm({
             <Label>Telefone</Label>
             <Input
               value={form.telefone ?? ""}
-              onChange={e => setForm({ ...form, telefone: e.target.value })}
+              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
               placeholder="(11) 9..."
             />
           </div>
@@ -472,7 +558,42 @@ function AlunoForm({
             <Input
               type="email"
               value={form.email ?? ""}
-              onChange={e => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Data de nascimento</Label>
+            <Input
+              type="date"
+              value={form.data_nascimento ?? ""}
+              onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Dia de vencimento</Label>
+            <Input
+              type="number"
+              min="1"
+              max="31"
+              value={form.dia_vencimento ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  dia_vencimento: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              placeholder="Ex: 10"
+            />
+          </div>
+
+          <div className="sm:col-span-2 space-y-2">
+            <Label>Endereço</Label>
+            <Input
+              value={form.endereco ?? ""}
+              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+              placeholder="Rua, número, bairro, cidade"
             />
           </div>
 
@@ -485,7 +606,7 @@ function AlunoForm({
               </p>
             ) : (
               <div className="flex flex-wrap gap-2 rounded-md border p-3">
-                {turmas.map(turma => {
+                {turmas.map((turma) => {
                   const selecionada = turmasSelecionadas.includes(turma.id);
 
                   return (
@@ -511,16 +632,15 @@ function AlunoForm({
           <div className="space-y-2">
             <Label>Valor da mensalidade</Label>
             <Input
-              type="number"
-              step="0.01"
-              placeholder="0,00"
+              type="text"
+              placeholder="Ex: 299,99"
               value={form.valor_mensalidade ?? ""}
-              onChange={e => setForm({
-                ...form,
-                valor_mensalidade: e.target.value === ""
-                  ? null
-                  : Number(e.target.value),
-              })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  valor_mensalidade: parseNumero(e.target.value),
+                })
+              }
             />
           </div>
 
@@ -528,7 +648,7 @@ function AlunoForm({
             <Label>Status</Label>
             <Select
               value={form.status ?? "ativo"}
-              onValueChange={v => setForm({ ...form, status: v })}
+              onValueChange={(v) => setForm({ ...form, status: v })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -537,6 +657,7 @@ function AlunoForm({
                 <SelectItem value="ativo">Ativo</SelectItem>
                 <SelectItem value="inativo">Inativo</SelectItem>
                 <SelectItem value="trancado">Trancado</SelectItem>
+                <SelectItem value="aberto">Aberto</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -546,7 +667,7 @@ function AlunoForm({
             <Input
               type="date"
               value={form.data_matricula ?? ""}
-              onChange={e => setForm({ ...form, data_matricula: e.target.value })}
+              onChange={(e) => setForm({ ...form, data_matricula: e.target.value })}
             />
           </div>
 
@@ -554,7 +675,7 @@ function AlunoForm({
             <Label>Observações</Label>
             <Textarea
               value={form.observacoes ?? ""}
-              onChange={e => setForm({ ...form, observacoes: e.target.value })}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
             />
           </div>
         </div>
@@ -658,7 +779,7 @@ function PagamentoDialog({
 
             <Select
               value={form.mensalidade_id || "none"}
-              onValueChange={v => {
+              onValueChange={(v) => {
                 const m = pendentes.find((p: any) => p.id === v);
 
                 setForm({
@@ -692,7 +813,7 @@ function PagamentoDialog({
               type="number"
               step="0.01"
               value={form.valor_pago}
-              onChange={e => setForm({ ...form, valor_pago: e.target.value })}
+              onChange={(e) => setForm({ ...form, valor_pago: e.target.value })}
             />
           </div>
 
@@ -701,7 +822,7 @@ function PagamentoDialog({
             <Input
               type="date"
               value={form.data_pagamento}
-              onChange={e => setForm({ ...form, data_pagamento: e.target.value })}
+              onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })}
             />
           </div>
 
@@ -710,7 +831,7 @@ function PagamentoDialog({
 
             <Select
               value={form.forma_pagamento}
-              onValueChange={v => setForm({ ...form, forma_pagamento: v })}
+              onValueChange={(v) => setForm({ ...form, forma_pagamento: v })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -730,7 +851,7 @@ function PagamentoDialog({
             <Label>Observações</Label>
             <Textarea
               value={form.observacoes}
-              onChange={e => setForm({ ...form, observacoes: e.target.value })}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
             />
           </div>
         </div>
