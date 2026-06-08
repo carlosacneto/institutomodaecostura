@@ -20,37 +20,85 @@ export type Database = {
           data_matricula: string | null
           email: string | null
           id: string
+          id_planilha: string | null
           nome: string
           observacoes: string | null
           status: string
           telefone: string | null
           turma_id: string | null
+          cpf: string | null
+          endereco: string | null
+          data_nascimento: string | null
+          dia_vencimento: number | null
+          valor_mensalidade: number | null
         }
         Insert: {
           created_at?: string
           data_matricula?: string | null
           email?: string | null
           id?: string
+          id_planilha?: string | null
           nome: string
           observacoes?: string | null
           status?: string
           telefone?: string | null
           turma_id?: string | null
+          cpf?: string | null
+          endereco?: string | null
+          data_nascimento?: string | null
+          dia_vencimento?: number | null
+          valor_mensalidade?: number | null
         }
         Update: {
           created_at?: string
           data_matricula?: string | null
           email?: string | null
           id?: string
+          id_planilha?: string | null
           nome?: string
           observacoes?: string | null
           status?: string
           telefone?: string | null
           turma_id?: string | null
+          cpf?: string | null
+          endereco?: string | null
+          data_nascimento?: string | null
+          dia_vencimento?: number | null
+          valor_mensalidade?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "alunos_turma_id_fkey"
+            columns: ["turma_id"]
+            isOneToOne: false
+            referencedRelation: "turmas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aluno_turmas: {
+        Row: {
+          aluno_id: string
+          turma_id: string
+        }
+        Insert: {
+          aluno_id: string
+          turma_id: string
+        }
+        Update: {
+          aluno_id?: string
+          turma_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aluno_turmas_aluno_id_fkey"
+            columns: ["aluno_id"]
+            isOneToOne: false
+            referencedRelation: "alunos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aluno_turmas_turma_id_fkey"
             columns: ["turma_id"]
             isOneToOne: false
             referencedRelation: "turmas"
@@ -164,6 +212,9 @@ export type Database = {
           data_vencimento: string
           forma_pagamento: string | null
           id: string
+          nome_aluno: string | null
+          telefone: string | null
+          turma: string | null
           observacoes: string | null
           status: string
           turma_id: string | null
@@ -176,6 +227,9 @@ export type Database = {
           data_vencimento: string
           forma_pagamento?: string | null
           id?: string
+          nome_aluno?: string | null
+          telefone?: string | null
+          turma?: string | null
           observacoes?: string | null
           status?: string
           turma_id?: string | null
@@ -188,6 +242,9 @@ export type Database = {
           data_vencimento?: string
           forma_pagamento?: string | null
           id?: string
+          nome_aluno?: string | null
+          telefone?: string | null
+          turma?: string | null
           observacoes?: string | null
           status?: string
           turma_id?: string | null
@@ -296,7 +353,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      excluir_turma_segura: {
+        Args: {
+          p_turma_id: string
+        }
+        Returns: null
+      }
     }
     Enums: {
       [_ in never]: never

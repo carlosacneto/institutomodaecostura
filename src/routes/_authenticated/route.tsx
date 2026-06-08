@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Users, GraduationCap, Receipt, CreditCard, Upload, MessageCircle, Settings, LogOut, Scissors, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Receipt, CreditCard, Upload, MessageCircle, Settings, LogOut, Scissors, Menu, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/alunos", label: "Alunos", icon: Users },
+  { to: "/contratos", label: "Contratos", icon: FileText },
   { to: "/turmas", label: "Turmas", icon: GraduationCap },
   { to: "/mensalidades", label: "Mensalidades", icon: Receipt },
   { to: "/pagamentos", label: "Pagamentos", icon: CreditCard },

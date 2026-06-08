@@ -207,7 +207,7 @@ function TurmaForm({
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
-        nome: form.nome?.trim().toUpperCase(),
+        nome: form.nome?.trim().toUpperCase() ?? "",
         curso: form.curso?.trim() || null,
         professor: form.professor?.trim() || null,
         dias_semana: form.dias_semana?.trim() || null,

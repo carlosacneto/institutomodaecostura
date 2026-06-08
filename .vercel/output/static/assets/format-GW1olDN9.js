@@ -1,0 +1,1 @@
+const e=t=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(t||0)),a=t=>t?new Date(t+(t.length===10?"T00:00:00":"")).toLocaleDateString("pt-BR"):"—",r=()=>new Date().toISOString().slice(0,10);export{a,e as f,r as t};

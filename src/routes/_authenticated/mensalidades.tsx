@@ -352,7 +352,7 @@ function MensalidadeForm({
   const save = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("mensalidades").insert({
-        aluno_id: form.aluno_id || null,
+        aluno_id: form.aluno_id!,
         nome_aluno: form.nome_aluno || null,
         telefone: form.telefone || null,
         turma: form.turma || null,
