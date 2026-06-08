@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTurmasRouteImport } from './routes/_authenticated/turmas'
 import { Route as AuthenticatedPagamentosRouteImport } from './routes/_authenticated/pagamentos'
 import { Route as AuthenticatedMensalidadesRouteImport } from './routes/_authenticated/mensalidades'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedImportacaoRouteImport } from './routes/_authenticated/importacao'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
@@ -54,6 +55,11 @@ const AuthenticatedMensalidadesRoute =
     path: '/mensalidades',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedImportacaoRoute = AuthenticatedImportacaoRouteImport.update({
   id: '/importacao',
   path: '/importacao',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/importacao': typeof AuthenticatedImportacaoRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/pagamentos': typeof AuthenticatedPagamentosRoute
   '/turmas': typeof AuthenticatedTurmasRouteWithChildren
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/importacao': typeof AuthenticatedImportacaoRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/pagamentos': typeof AuthenticatedPagamentosRoute
   '/turmas': typeof AuthenticatedTurmasRouteWithChildren
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/importacao': typeof AuthenticatedImportacaoRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/mensalidades': typeof AuthenticatedMensalidadesRoute
   '/_authenticated/pagamentos': typeof AuthenticatedPagamentosRoute
   '/_authenticated/turmas': typeof AuthenticatedTurmasRouteWithChildren
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/importacao'
+    | '/leads'
     | '/mensalidades'
     | '/pagamentos'
     | '/turmas'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/importacao'
+    | '/leads'
     | '/mensalidades'
     | '/pagamentos'
     | '/turmas'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/importacao'
+    | '/_authenticated/leads'
     | '/_authenticated/mensalidades'
     | '/_authenticated/pagamentos'
     | '/_authenticated/turmas'
@@ -243,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/mensalidades'
       fullPath: '/mensalidades'
       preLoaderRoute: typeof AuthenticatedMensalidadesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/importacao': {
@@ -321,6 +340,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedImportacaoRoute: typeof AuthenticatedImportacaoRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedMensalidadesRoute: typeof AuthenticatedMensalidadesRoute
   AuthenticatedPagamentosRoute: typeof AuthenticatedPagamentosRoute
   AuthenticatedTurmasRoute: typeof AuthenticatedTurmasRouteWithChildren
@@ -334,6 +354,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedImportacaoRoute: AuthenticatedImportacaoRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedMensalidadesRoute: AuthenticatedMensalidadesRoute,
   AuthenticatedPagamentosRoute: AuthenticatedPagamentosRoute,
   AuthenticatedTurmasRoute: AuthenticatedTurmasRouteWithChildren,

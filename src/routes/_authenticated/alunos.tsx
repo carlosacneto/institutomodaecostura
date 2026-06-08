@@ -7,11 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pencil, Plus, Receipt, Send, Search } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Pencil, Plus, Receipt, Send, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { callWebhook, loadWebhooks } from "@/lib/webhooks";
 import { formatBRL, today } from "@/lib/format";
@@ -119,11 +138,16 @@ function AlunosPage() {
       }
 
       if (filtroTurma !== "all") {
-        const temTurma = a.aluno_turmas?.some((at) => at.turma_id === filtroTurma);
+        const temTurma = a.aluno_turmas?.some(
+          (at) => at.turma_id === filtroTurma
+        );
+
         if (!temTurma) return false;
       }
 
-      if (filtroStatus !== "all" && a.status !== filtroStatus) return false;
+      if (filtroStatus !== "all" && a.status !== filtroStatus) {
+        return false;
+      }
 
       return true;
     });
@@ -155,7 +179,63 @@ function AlunosPage() {
       toast.success("Cobrança enviada");
       qc.invalidateQueries({ queryKey: ["mensagens"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  const excluirAluno = useMutation({
+    mutationFn: async (a: Aluno) => {
+      const confirmar = window.confirm(
+        `Tem certeza que deseja excluir o aluno "${a.nome}"?\n\nEssa ação também removerá vínculos de turma, mensalidades e mensagens relacionados a esse aluno.\n\nEssa ação não poderá ser desfeita.`
+      );
+
+      if (!confirmar) {
+        return { cancelado: true };
+      }
+
+      const { error: alunoTurmasError } = await supabase
+        .from("aluno_turmas")
+        .delete()
+        .eq("aluno_id", a.id);
+
+      if (alunoTurmasError) throw alunoTurmasError;
+
+      const { error: mensagensError } = await supabase
+        .from("mensagens")
+        .delete()
+        .eq("aluno_id", a.id);
+
+      if (mensagensError) throw mensagensError;
+
+      const { error: mensalidadesError } = await supabase
+        .from("mensalidades")
+        .delete()
+        .eq("aluno_id", a.id);
+
+      if (mensalidadesError) throw mensalidadesError;
+
+      const { error: alunoError } = await supabase
+        .from("alunos")
+        .delete()
+        .eq("id", a.id);
+
+      if (alunoError) throw alunoError;
+
+      return { cancelado: false };
+    },
+    onSuccess: (resultado) => {
+      if (resultado?.cancelado) return;
+
+      toast.success("Aluno excluído com sucesso");
+      qc.invalidateQueries({ queryKey: ["alunos"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["mensalidades"] });
+      qc.invalidateQueries({ queryKey: ["mensagens"] });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
   });
 
   return (
@@ -184,6 +264,7 @@ function AlunosPage() {
           <div className="grid gap-3 sm:grid-cols-[1fr_200px_180px]">
             <div className="relative">
               <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
               <Input
                 className="pl-9"
                 placeholder="Buscar por nome, e-mail, telefone ou CPF..."
@@ -196,8 +277,10 @@ function AlunosPage() {
               <SelectTrigger>
                 <SelectValue placeholder="Turma" />
               </SelectTrigger>
+
               <SelectContent>
                 <SelectItem value="all">Todas as turmas</SelectItem>
+
                 {turmas.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.nome}
@@ -210,6 +293,7 @@ function AlunosPage() {
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
+
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="ativo">Ativo</SelectItem>
@@ -240,13 +324,19 @@ function AlunosPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filtrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhum aluno encontrado.
                     </TableCell>
                   </TableRow>
@@ -255,6 +345,7 @@ function AlunosPage() {
                     <TableRow key={a.id}>
                       <TableCell className="font-medium">
                         <div>{a.nome}</div>
+
                         {a.id_planilha && (
                           <div className="text-xs text-muted-foreground">
                             ID: {a.id_planilha}
@@ -285,7 +376,9 @@ function AlunosPage() {
 
                       <TableCell>
                         {a.valor_mensalidade != null
-                          ? formatBRL(normalizarMensalidade(a.valor_mensalidade))
+                          ? formatBRL(
+                              normalizarMensalidade(a.valor_mensalidade)
+                            )
                           : "—"}
                       </TableCell>
 
@@ -329,6 +422,17 @@ function AlunosPage() {
                           >
                             <Send className="size-4" />
                           </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Excluir aluno"
+                            onClick={() => excluirAluno.mutate(a)}
+                            disabled={excluirAluno.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -348,10 +452,7 @@ function AlunosPage() {
       />
 
       {openPay && (
-        <PagamentoDialog
-          aluno={openPay}
-          onClose={() => setOpenPay(null)}
-        />
+        <PagamentoDialog aluno={openPay} onClose={() => setOpenPay(null)} />
       )}
     </div>
   );
@@ -522,7 +623,9 @@ function AlunoForm({
             <Label>ID da planilha</Label>
             <Input
               value={form.id_planilha ?? ""}
-              onChange={(e) => setForm({ ...form, id_planilha: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, id_planilha: e.target.value })
+              }
               placeholder="Ex: 714"
             />
           </div>
@@ -567,7 +670,9 @@ function AlunoForm({
             <Input
               type="date"
               value={form.data_nascimento ?? ""}
-              onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, data_nascimento: e.target.value })
+              }
             />
           </div>
 
@@ -581,7 +686,8 @@ function AlunoForm({
               onChange={(e) =>
                 setForm({
                   ...form,
-                  dia_vencimento: e.target.value === "" ? null : Number(e.target.value),
+                  dia_vencimento:
+                    e.target.value === "" ? null : Number(e.target.value),
                 })
               }
               placeholder="Ex: 10"
@@ -653,6 +759,7 @@ function AlunoForm({
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
+
               <SelectContent>
                 <SelectItem value="ativo">Ativo</SelectItem>
                 <SelectItem value="inativo">Inativo</SelectItem>
@@ -667,7 +774,9 @@ function AlunoForm({
             <Input
               type="date"
               value={form.data_matricula ?? ""}
-              onChange={(e) => setForm({ ...form, data_matricula: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, data_matricula: e.target.value })
+              }
             />
           </div>
 
@@ -675,7 +784,9 @@ function AlunoForm({
             <Label>Observações</Label>
             <Textarea
               value={form.observacoes ?? ""}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, observacoes: e.target.value })
+              }
             />
           </div>
         </div>
@@ -732,13 +843,13 @@ function PagamentoDialog({
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("pagamentos").insert({
+      const { error } = await supabase.from("mensalidades").insert({
         aluno_id: aluno.id,
-        mensalidade_id: form.mensalidade_id || null,
-        valor_pago: Number(form.valor_pago),
+        valor: Number(form.valor_pago),
         data_pagamento: form.data_pagamento,
         forma_pagamento: form.forma_pagamento,
         observacoes: form.observacoes,
+        status: "pago",
       });
 
       if (error) throw error;
@@ -794,9 +905,7 @@ function PagamentoDialog({
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="none">
-                  Avulso sem mensalidade
-                </SelectItem>
+                <SelectItem value="none">Avulso sem mensalidade</SelectItem>
 
                 {pendentes.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>
@@ -822,7 +931,9 @@ function PagamentoDialog({
             <Input
               type="date"
               value={form.data_pagamento}
-              onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, data_pagamento: e.target.value })
+              }
             />
           </div>
 
@@ -851,7 +962,9 @@ function PagamentoDialog({
             <Label>Observações</Label>
             <Textarea
               value={form.observacoes}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, observacoes: e.target.value })
+              }
             />
           </div>
         </div>
