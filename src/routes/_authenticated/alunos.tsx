@@ -61,6 +61,8 @@ type Aluno = {
   telefone: string | null;
   email: string | null;
   cpf: string | null;
+  rg: string | null;
+  cep: string | null;
   endereco: string | null;
   data_nascimento: string | null;
   dia_vencimento: number | null;
@@ -70,6 +72,14 @@ type Aluno = {
   turma_id: string | null;
   created_at: string;
   valor_mensalidade: number | null;
+
+  curso: string | null;
+  duracao_curso: string | null;
+  promocao: string | null;
+  valor_inscricao: number | null;
+  data_inscricao: string | null;
+  inicio_aulas: string | null;
+
   aluno_turmas?: AlunoTurma[];
 };
 
@@ -126,13 +136,17 @@ function AlunosPage() {
       const email = a.email ?? "";
       const telefone = a.telefone ?? "";
       const cpf = a.cpf ?? "";
+      const rg = a.rg ?? "";
+      const curso = a.curso ?? "";
 
       if (
         busca &&
         !nome.toLowerCase().includes(busca.toLowerCase()) &&
         !email.toLowerCase().includes(busca.toLowerCase()) &&
         !telefone.toLowerCase().includes(busca.toLowerCase()) &&
-        !cpf.toLowerCase().includes(busca.toLowerCase())
+        !cpf.toLowerCase().includes(busca.toLowerCase()) &&
+        !rg.toLowerCase().includes(busca.toLowerCase()) &&
+        !curso.toLowerCase().includes(busca.toLowerCase())
       ) {
         return false;
       }
@@ -267,7 +281,7 @@ function AlunosPage() {
 
               <Input
                 className="pl-9"
-                placeholder="Buscar por nome, e-mail, telefone ou CPF..."
+                placeholder="Buscar por nome, e-mail, telefone, CPF, RG ou curso..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
@@ -314,6 +328,7 @@ function AlunosPage() {
                   <TableHead>Contato</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>Turmas</TableHead>
+                  <TableHead>Curso</TableHead>
                   <TableHead>Mensalidade</TableHead>
                   <TableHead>Venc.</TableHead>
                   <TableHead>Status</TableHead>
@@ -325,7 +340,7 @@ function AlunosPage() {
                 {isLoading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Carregando...
@@ -334,7 +349,7 @@ function AlunosPage() {
                 ) : filtrados.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Nenhum aluno encontrado.
@@ -373,6 +388,8 @@ function AlunosPage() {
                           )}
                         </div>
                       </TableCell>
+
+                      <TableCell>{a.curso ?? "—"}</TableCell>
 
                       <TableCell>
                         {a.valor_mensalidade != null
@@ -498,6 +515,8 @@ function AlunoForm({
         telefone: null,
         email: null,
         cpf: null,
+        rg: null,
+        cep: null,
         endereco: null,
         data_nascimento: null,
         dia_vencimento: null,
@@ -505,6 +524,12 @@ function AlunoForm({
         data_matricula: today(),
         valor_mensalidade: null,
         observacoes: null,
+        curso: null,
+        duracao_curso: null,
+        promocao: null,
+        valor_inscricao: null,
+        data_inscricao: today(),
+        inicio_aulas: null,
       }
     );
 
@@ -545,6 +570,8 @@ function AlunoForm({
         telefone: form.telefone || null,
         email: form.email || null,
         cpf: form.cpf || null,
+        rg: form.rg || null,
+        cep: form.cep || null,
         endereco: form.endereco || null,
         data_nascimento: form.data_nascimento || null,
         dia_vencimento: form.dia_vencimento ?? null,
@@ -552,6 +579,14 @@ function AlunoForm({
         data_matricula: form.data_matricula || null,
         observacoes: form.observacoes || null,
         valor_mensalidade: form.valor_mensalidade ?? null,
+
+        curso: form.curso || null,
+        duracao_curso: form.duracao_curso || null,
+        promocao: form.promocao || null,
+        valor_inscricao: form.valor_inscricao ?? null,
+        data_inscricao: form.data_inscricao || null,
+        inicio_aulas: form.inicio_aulas || null,
+
         turma_id: turmasSelecionadas[0] ?? null,
       };
 
@@ -611,184 +646,300 @@ function AlunoForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
             {isEdit ? "Editar aluno" : "Novo aluno"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>ID da planilha</Label>
-            <Input
-              value={form.id_planilha ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, id_planilha: e.target.value })
-              }
-              placeholder="Ex: 714"
-            />
-          </div>
+        <div className="grid gap-6">
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Dados pessoais
+            </h3>
 
-          <div className="space-y-2">
-            <Label>CPF</Label>
-            <Input
-              value={form.cpf ?? ""}
-              onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className="sm:col-span-2 space-y-2">
-            <Label>Nome</Label>
-            <Input
-              value={form.nome ?? ""}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Telefone</Label>
-            <Input
-              value={form.telefone ?? ""}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              placeholder="(11) 9..."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>E-mail</Label>
-            <Input
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Data de nascimento</Label>
-            <Input
-              type="date"
-              value={form.data_nascimento ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, data_nascimento: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Dia de vencimento</Label>
-            <Input
-              type="number"
-              min="1"
-              max="31"
-              value={form.dia_vencimento ?? ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  dia_vencimento:
-                    e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="Ex: 10"
-            />
-          </div>
-
-          <div className="sm:col-span-2 space-y-2">
-            <Label>Endereço</Label>
-            <Input
-              value={form.endereco ?? ""}
-              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
-              placeholder="Rua, número, bairro, cidade"
-            />
-          </div>
-
-          <div className="sm:col-span-2 space-y-2">
-            <Label>Turmas</Label>
-
-            {turmas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma turma cadastrada.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2 rounded-md border p-3">
-                {turmas.map((turma) => {
-                  const selecionada = turmasSelecionadas.includes(turma.id);
-
-                  return (
-                    <Button
-                      key={turma.id}
-                      type="button"
-                      size="sm"
-                      variant={selecionada ? "default" : "outline"}
-                      onClick={() => toggleTurma(turma.id)}
-                    >
-                      {turma.nome}
-                    </Button>
-                  );
-                })}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>ID da planilha / matrícula</Label>
+                <Input
+                  value={form.id_planilha ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, id_planilha: e.target.value })
+                  }
+                  placeholder="Ex: 719"
+                />
               </div>
-            )}
 
-            <p className="text-xs text-muted-foreground">
-              Clique em uma ou mais turmas para vincular ao aluno.
-            </p>
-          </div>
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={form.nome ?? ""}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Valor da mensalidade</Label>
-            <Input
-              type="text"
-              placeholder="Ex: 299,99"
-              value={form.valor_mensalidade ?? ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  valor_mensalidade: parseNumero(e.target.value),
-                })
-              }
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>CPF</Label>
+                <Input
+                  value={form.cpf ?? ""}
+                  onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                  placeholder="000.000.000-00"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={form.status ?? "ativo"}
-              onValueChange={(v) => setForm({ ...form, status: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <div className="space-y-2">
+                <Label>RG</Label>
+                <Input
+                  value={form.rg ?? ""}
+                  onChange={(e) => setForm({ ...form, rg: e.target.value })}
+                  placeholder="00.000.000-0"
+                />
+              </div>
 
-              <SelectContent>
-                <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="inativo">Inativo</SelectItem>
-                <SelectItem value="trancado">Trancado</SelectItem>
-                <SelectItem value="aberto">Aberto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label>Data de nascimento</Label>
+                <Input
+                  type="date"
+                  value={form.data_nascimento ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, data_nascimento: e.target.value })
+                  }
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>Data de matrícula</Label>
-            <Input
-              type="date"
-              value={form.data_matricula ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, data_matricula: e.target.value })
-              }
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={form.status ?? "ativo"}
+                  onValueChange={(v) => setForm({ ...form, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
 
-          <div className="sm:col-span-2 space-y-2">
-            <Label>Observações</Label>
-            <Textarea
-              value={form.observacoes ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, observacoes: e.target.value })
-              }
-            />
-          </div>
+                  <SelectContent>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="inativo">Inativo</SelectItem>
+                    <SelectItem value="trancado">Trancado</SelectItem>
+                    <SelectItem value="aberto">Aberto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Contato e endereço
+            </h3>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={form.telefone ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, telefone: e.target.value })
+                  }
+                  placeholder="(11) 9..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>CEP</Label>
+                <Input
+                  value={form.cep ?? ""}
+                  onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                  placeholder="00000-000"
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Endereço</Label>
+                <Input
+                  value={form.endereco ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, endereco: e.target.value })
+                  }
+                  placeholder="Rua, número, complemento, bairro, cidade"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Dados do curso e contrato
+            </h3>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Curso</Label>
+                <Input
+                  value={form.curso ?? ""}
+                  onChange={(e) => setForm({ ...form, curso: e.target.value })}
+                  placeholder="Ex: Concertos e Reformas"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duração do curso</Label>
+                <Input
+                  value={form.duracao_curso ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, duracao_curso: e.target.value })
+                  }
+                  placeholder="Ex: 25 módulos"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Promoção</Label>
+                <Input
+                  value={form.promocao ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, promocao: e.target.value })
+                  }
+                  placeholder="Ex: 2 kilos de alimento"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Início das aulas</Label>
+                <Input
+                  type="date"
+                  value={form.inicio_aulas ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, inicio_aulas: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Valor da inscrição</Label>
+                <Input
+                  type="text"
+                  placeholder="Ex: 179,99"
+                  value={form.valor_inscricao ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      valor_inscricao: parseNumero(e.target.value),
+                    })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data da inscrição</Label>
+                <Input
+                  type="date"
+                  value={form.data_inscricao ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, data_inscricao: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Valor da mensalidade</Label>
+                <Input
+                  type="text"
+                  placeholder="Ex: 299,99"
+                  value={form.valor_mensalidade ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      valor_mensalidade: parseNumero(e.target.value),
+                    })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Dia de vencimento</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.dia_vencimento ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      dia_vencimento:
+                        e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  placeholder="Ex: 10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data de matrícula</Label>
+                <Input
+                  type="date"
+                  value={form.data_matricula ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, data_matricula: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Turmas</Label>
+
+                {turmas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma turma cadastrada.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 rounded-md border p-3">
+                    {turmas.map((turma) => {
+                      const selecionada = turmasSelecionadas.includes(
+                        turma.id
+                      );
+
+                      return (
+                        <Button
+                          key={turma.id}
+                          type="button"
+                          size="sm"
+                          variant={selecionada ? "default" : "outline"}
+                          onClick={() => toggleTurma(turma.id)}
+                        >
+                          {turma.nome}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Clique em uma ou mais turmas para vincular ao aluno.
+                </p>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Observações</Label>
+                <Textarea
+                  value={form.observacoes ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, observacoes: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </section>
         </div>
 
         <DialogFooter>
