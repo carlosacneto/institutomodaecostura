@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL, formatDate, today } from "@/lib/format";
 
@@ -48,7 +48,56 @@ type Mensalidade = {
   status: string | null;
   data_pagamento?: string | null;
   observacoes?: string | null;
+  tipo?: string | null;
+  referencia?: string | null;
 };
+
+function limparTelefoneWhatsApp(telefone: string | null | undefined) {
+  const numeros = String(telefone ?? "").replace(/\D/g, "");
+
+  if (!numeros) return null;
+
+  if (numeros.startsWith("55")) {
+    return numeros.length >= 12 ? numeros : null;
+  }
+
+  if (numeros.length < 10) return null;
+
+  return `55${numeros}`;
+}
+
+function montarLinkCobrancaWhatsApp(mensalidade: Mensalidade) {
+  const telefone = limparTelefoneWhatsApp(mensalidade.telefone);
+
+  if (!telefone) return null;
+
+  const nomeCompleto = mensalidade.nome_aluno?.trim() || "aluno";
+  const primeiroNome = nomeCompleto.split(" ")[0] || "aluno";
+
+  const mensagem = [
+    `Olá ${primeiroNome}, tudo bem?`,
+    "",
+    "Passando para lembrar sobre sua mensalidade do Instituto Moda e Costura.",
+    "",
+    `Aluno: ${nomeCompleto}`,
+    mensalidade.referencia ? `Referência: ${mensalidade.referencia}` : "",
+    mensalidade.tipo ? `Tipo: ${mensalidade.tipo}` : "",
+    `Valor: ${formatBRL(Number(mensalidade.valor ?? 0))}`,
+    `Vencimento: ${
+      mensalidade.data_vencimento
+        ? formatDate(mensalidade.data_vencimento)
+        : "não informado"
+    }`,
+    mensalidade.turma ? `Turma: ${mensalidade.turma}` : "",
+    "",
+    "Caso já tenha realizado o pagamento, por favor desconsidere esta mensagem.",
+    "Qualquer dúvida, estamos à disposição.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+}
 
 function MensalidadesPage() {
   const qc = useQueryClient();
@@ -97,6 +146,8 @@ function MensalidadesPage() {
         m.data_vencimento,
         m.data_pagamento,
         m.observacoes,
+        m.tipo,
+        m.referencia,
       ]
         .filter(Boolean)
         .join(" ")
@@ -246,6 +297,7 @@ function MensalidadesPage() {
                     const status = m.status ?? "pendente";
                     const vencimento = m.data_vencimento ?? "";
                     const vencida = status !== "pago" && vencimento < today();
+                    const linkCobranca = montarLinkCobrancaWhatsApp(m);
 
                     return (
                       <TableRow key={m.id}>
@@ -280,25 +332,41 @@ function MensalidadesPage() {
                         </TableCell>
 
                         <TableCell className="text-right">
-                          {status === "pago" ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDesfazerPagamento(m)}
-                              disabled={desfazerPagamento.isPending}
-                            >
-                              Desfazer pagamento
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => marcarComoPaga.mutate(m.id)}
-                              disabled={marcarComoPaga.isPending}
-                            >
-                              Marcar como paga
-                            </Button>
-                          )}
+                          <div className="flex justify-end gap-2">
+                            {status !== "pago" && linkCobranca && (
+                              <Button size="sm" variant="outline" asChild>
+                                <a
+                                  href={linkCobranca}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Cobrar pelo WhatsApp"
+                                >
+                                  <Send className="mr-2 size-4" />
+                                  Cobrar
+                                </a>
+                              </Button>
+                            )}
+
+                            {status === "pago" ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDesfazerPagamento(m)}
+                                disabled={desfazerPagamento.isPending}
+                              >
+                                Desfazer pagamento
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => marcarComoPaga.mutate(m.id)}
+                                disabled={marcarComoPaga.isPending}
+                              >
+                                Marcar como paga
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
