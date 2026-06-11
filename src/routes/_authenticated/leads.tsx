@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,6 +154,15 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
   },
 ];
 
+const LARGURA_INICIAL_COLUNAS: Record<KanbanColumnId, number> = {
+  novo: 280,
+  atendimento: 280,
+  visita: 280,
+  matriculado: 280,
+  sem_resposta: 280,
+  perdido: 280,
+};
+
 function normalizarTexto(valor: string | null | undefined) {
   return (valor ?? "")
     .toString()
@@ -170,9 +180,7 @@ function canonicalizarStatusLead(
 ): StatusLeadCanonico {
   const valor = normalizarTexto(status);
 
-  if (!valor || valor.includes("novo")) {
-    return "novo";
-  }
+  if (!valor || valor.includes("novo")) return "novo";
 
   if (valor.includes("matriculado") || valor.includes("convertido")) {
     return "matriculado";
@@ -215,13 +223,8 @@ function formatStatusLead(status: string | null) {
 function getPrioridadeClass(prioridade: string | null) {
   const valor = normalizarTexto(prioridade);
 
-  if (valor === "alta") {
-    return "bg-destructive/15 text-destructive";
-  }
-
-  if (valor === "media") {
-    return "bg-warning/15 text-warning";
-  }
+  if (valor === "alta") return "bg-destructive/15 text-destructive";
+  if (valor === "media") return "bg-warning/15 text-warning";
 
   return "bg-muted text-muted-foreground";
 }
@@ -229,29 +232,12 @@ function getPrioridadeClass(prioridade: string | null) {
 function getStatusClass(status: string | null) {
   const valor = canonicalizarStatusLead(status);
 
-  if (valor === "novo") {
-    return "bg-primary/15 text-primary";
-  }
-
-  if (valor === "em_atendimento") {
-    return "bg-warning/15 text-warning";
-  }
-
-  if (valor === "visita_agendada") {
-    return "bg-blue-100 text-blue-700";
-  }
-
-  if (valor === "matriculado") {
-    return "bg-success/15 text-success";
-  }
-
-  if (valor === "sem_resposta") {
-    return "bg-slate-100 text-slate-700";
-  }
-
-  if (valor === "perdido") {
-    return "bg-destructive/15 text-destructive";
-  }
+  if (valor === "novo") return "bg-primary/15 text-primary";
+  if (valor === "em_atendimento") return "bg-warning/15 text-warning";
+  if (valor === "visita_agendada") return "bg-blue-100 text-blue-700";
+  if (valor === "matriculado") return "bg-success/15 text-success";
+  if (valor === "sem_resposta") return "bg-slate-100 text-slate-700";
+  if (valor === "perdido") return "bg-destructive/15 text-destructive";
 
   return "bg-muted text-muted-foreground";
 }
@@ -259,13 +245,8 @@ function getStatusClass(status: string | null) {
 function getTarefaStatusClass(status: string | null) {
   const valor = normalizarTexto(status);
 
-  if (valor.includes("pendente")) {
-    return "bg-warning/15 text-warning";
-  }
-
-  if (valor.includes("conclu")) {
-    return "bg-success/15 text-success";
-  }
+  if (valor.includes("pendente")) return "bg-warning/15 text-warning";
+  if (valor.includes("conclu")) return "bg-success/15 text-success";
 
   return "bg-muted text-muted-foreground";
 }
@@ -299,25 +280,13 @@ function getColumnBadgeClass(columnId: KanbanColumnId) {
 function getLeadColumnId(lead: Lead): KanbanColumnId {
   const status = canonicalizarStatusLead(lead.status);
 
-  if (lead.convertido_aluno || status === "matriculado") {
-    return "matriculado";
-  }
+  if (lead.convertido_aluno || status === "matriculado") return "matriculado";
+  if (status === "perdido") return "perdido";
+  if (status === "sem_resposta") return "sem_resposta";
+  if (status === "em_atendimento") return "atendimento";
+  if (status === "visita_agendada") return "visita";
 
-  if (status === "perdido") {
-    return "perdido";
-  }
-
-  if (status === "sem_resposta") {
-    return "sem_resposta";
-  }
-
-  if (status === "em_atendimento") {
-    return "atendimento";
-  }
-
-  if (status === "visita_agendada") {
-    return "visita";
-  }
+  if (lead.visita_agendada_em && !lead.status) return "visita";
 
   return "novo";
 }
@@ -327,9 +296,7 @@ function formatDateTimeBR(value: string | null) {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -373,12 +340,39 @@ function converterValorMensalidade(valor: string) {
   return Number.isFinite(numero) ? numero : null;
 }
 
+function getReferenciaMesAno(data: Date) {
+  const mes = new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+  }).format(data);
+
+  const mesFormatado = mes.charAt(0).toUpperCase() + mes.slice(1);
+
+  return `${mesFormatado}/${data.getFullYear()}`;
+}
+
+function getDataVencimentoMensalidade(diaVencimento: number) {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  const ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();
+  const diaSeguro = Math.min(Math.max(diaVencimento, 1), ultimoDiaMes);
+
+  return new Date(ano, mes, diaSeguro).toISOString().slice(0, 10);
+}
+
+function getDataHojeISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function LeadsPage() {
   const queryClient = useQueryClient();
 
   const [busca, setBusca] = useState("");
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null);
   const [leadsPainel, setLeadsPainel] = useState<Lead[]>([]);
+  const [largurasColunas, setLargurasColunas] = useState<
+    Record<KanbanColumnId, number>
+  >(LARGURA_INICIAL_COLUNAS);
 
   const [modalVisitaAberto, setModalVisitaAberto] = useState(false);
   const [dataVisita, setDataVisita] = useState("");
@@ -387,6 +381,7 @@ function LeadsPage() {
   const [modalConversaoAberto, setModalConversaoAberto] = useState(false);
   const [turmasSelecionadas, setTurmasSelecionadas] = useState<string[]>([]);
   const [valorMensalidade, setValorMensalidade] = useState("");
+  const [valorMatricula, setValorMatricula] = useState("");
   const [diaVencimento, setDiaVencimento] = useState("");
   const [observacoesAluno, setObservacoesAluno] = useState("");
 
@@ -443,7 +438,47 @@ function LeadsPage() {
     });
   }
 
-  const {
+  function atualizarLeadNoCache(leadAtualizado: Lead) {
+    queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
+      if (!leadsAtuais) return leadsAtuais;
+
+      return leadsAtuais.map((lead) =>
+        lead.id === leadAtualizado.id ? leadAtualizado : lead
+      );
+    });
+  }
+
+  function iniciarResizeColuna(
+    columnId: KanbanColumnId,
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
+    event.preventDefault();
+
+    const inicioX = event.clientX;
+    const larguraInicial = largurasColunas[columnId];
+
+    function aoMover(mouseEvent: MouseEvent) {
+      const diferenca = mouseEvent.clientX - inicioX;
+      const novaLargura = Math.min(
+        560,
+        Math.max(220, larguraInicial + diferenca)
+      );
+
+      setLargurasColunas((largurasAtuais) => ({
+        ...largurasAtuais,
+        [columnId]: novaLargura,
+      }));
+    }
+
+    function aoSoltar() {
+      document.removeEventListener("mousemove", aoMover);
+      document.removeEventListener("mouseup", aoSoltar);
+    }
+
+    document.addEventListener("mousemove", aoMover);
+    document.addEventListener("mouseup", aoSoltar);
+  }
+    const {
     data: turmas = [],
     isLoading: carregandoTurmas,
     isError: erroTurmas,
@@ -552,17 +587,9 @@ function LeadsPage() {
 
       atualizarLeadNoPainel(variables.lead.id, alteracoes);
     },
-    onSuccess: async (leadAtualizado) => {
+    onSuccess: (leadAtualizado) => {
       atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
-
-      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
-        if (!leadsAtuais) return leadsAtuais;
-
-        return leadsAtuais.map((lead) =>
-          lead.id === leadAtualizado.id ? leadAtualizado : lead
-        );
-      });
-
+      atualizarLeadNoCache(leadAtualizado);
       toast.success("Status do lead atualizado");
     },
     onError: (error: Error) => {
@@ -633,14 +660,7 @@ function LeadsPage() {
     },
     onSuccess: async (leadAtualizado) => {
       atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
-
-      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
-        if (!leadsAtuais) return leadsAtuais;
-
-        return leadsAtuais.map((lead) =>
-          lead.id === leadAtualizado.id ? leadAtualizado : lead
-        );
-      });
+      atualizarLeadNoCache(leadAtualizado);
 
       await queryClient.invalidateQueries({
         queryKey: ["lead_tarefas", leadSelecionado?.id],
@@ -668,11 +688,31 @@ function LeadsPage() {
       }
 
       const nomeAluno = leadSelecionado.nome?.trim() || "Aluno sem nome";
-      const hoje = new Date().toISOString().slice(0, 10);
+      const hoje = getDataHojeISO();
       const mensalidadeConvertida = converterValorMensalidade(valorMensalidade);
+      const matriculaConvertida = converterValorMensalidade(valorMatricula);
       const diaVencimentoConvertido = diaVencimento
         ? Number(diaVencimento)
         : null;
+
+      if (mensalidadeConvertida === null) {
+        throw new Error("Informe o valor da mensalidade.");
+      }
+
+      if (matriculaConvertida === null) {
+        throw new Error(
+          "Informe o valor da matrícula. Use 0,00 se houver isenção."
+        );
+      }
+
+      if (
+        diaVencimentoConvertido === null ||
+        !Number.isInteger(diaVencimentoConvertido) ||
+        diaVencimentoConvertido < 1 ||
+        diaVencimentoConvertido > 31
+      ) {
+        throw new Error("Informe um dia de vencimento válido entre 1 e 31.");
+      }
 
       const turmasEscolhidas = turmas.filter((turma) =>
         turmasSelecionadas.includes(turma.id)
@@ -721,6 +761,50 @@ function LeadsPage() {
       if (vinculosError) throw vinculosError;
 
       const agora = new Date().toISOString();
+      const dataAtual = new Date();
+      const referenciaMensalidade = getReferenciaMesAno(dataAtual);
+      const referenciaMatricula = `Matrícula ${dataAtual.getFullYear()}`;
+      const dataVencimentoMensalidade = getDataVencimentoMensalidade(
+        diaVencimentoConvertido
+      );
+
+      const mensalidadesParaCriar = [
+        {
+          aluno_id: alunoCriado.id,
+          nome_aluno: nomeAluno,
+          telefone: leadSelecionado.telefone || null,
+          turma: nomesTurmas || null,
+          valor: matriculaConvertida,
+          data_vencimento: hoje,
+          status: "pendente",
+          data_pagamento: null,
+          forma_pagamento: null,
+          observacoes: "Matrícula gerada automaticamente na conversão do lead.",
+          tipo: "matricula",
+          referencia: referenciaMatricula,
+        },
+        {
+          aluno_id: alunoCriado.id,
+          nome_aluno: nomeAluno,
+          telefone: leadSelecionado.telefone || null,
+          turma: nomesTurmas || null,
+          valor: mensalidadeConvertida,
+          data_vencimento: dataVencimentoMensalidade,
+          status: "pendente",
+          data_pagamento: null,
+          forma_pagamento: null,
+          observacoes:
+            "Mensalidade gerada automaticamente na conversão do lead.",
+          tipo: "mensalidade",
+          referencia: referenciaMensalidade,
+        },
+      ];
+
+      const { error: mensalidadesError } = await supabaseAny
+        .from("mensalidades")
+        .insert(mensalidadesParaCriar);
+
+      if (mensalidadesError) throw mensalidadesError;
 
       const payloadLead: Partial<Lead> = {
         status: "matriculado",
@@ -746,7 +830,7 @@ function LeadsPage() {
           titulo: "Lead convertido em aluno",
           descricao: `Lead convertido em aluno: ${nomeAluno}. Turmas: ${
             nomesTurmas || "não informadas"
-          }.`,
+          }. Matrícula e mensalidade geradas no financeiro.`,
           status: "concluida",
           data_agendada: agora,
         });
@@ -771,38 +855,23 @@ function LeadsPage() {
         ...payloadLead,
       } as Lead;
     },
-    onMutate: () => {
-      if (!leadSelecionado) return;
-
-      atualizarLeadNoPainel(leadSelecionado.id, {
-        status: "matriculado",
-        convertido_aluno: true,
-        proxima_acao: "Aluno matriculado",
-        atualizado_em: new Date().toISOString(),
-      });
-    },
     onSuccess: async (leadAtualizado) => {
       atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
-
-      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
-        if (!leadsAtuais) return leadsAtuais;
-
-        return leadsAtuais.map((lead) =>
-          lead.id === leadAtualizado.id ? leadAtualizado : lead
-        );
-      });
+      atualizarLeadNoCache(leadAtualizado);
 
       await queryClient.invalidateQueries({ queryKey: ["turmas"] });
       await queryClient.invalidateQueries({ queryKey: ["alunos"] });
+      await queryClient.invalidateQueries({ queryKey: ["mensalidades"] });
       await queryClient.invalidateQueries({
         queryKey: ["lead_tarefas", leadSelecionado?.id],
       });
 
-      toast.success("Lead convertido em aluno");
+      toast.success("Lead convertido em aluno e cobranças geradas");
 
       setModalConversaoAberto(false);
       setTurmasSelecionadas([]);
       setValorMensalidade("");
+      setValorMatricula("");
       setDiaVencimento("");
       setObservacoesAluno("");
     },
@@ -884,6 +953,7 @@ function LeadsPage() {
     setLeadSelecionado(lead);
     setTurmasSelecionadas([]);
     setValorMensalidade("");
+    setValorMatricula("");
     setDiaVencimento("");
     setObservacoesAluno(
       `Aluno convertido a partir do lead. Origem: ${
@@ -926,8 +996,7 @@ function LeadsPage() {
       proximaAcao,
     });
   }
-
-  function renderLeadCard(lead: Lead) {
+    function renderLeadCard(lead: Lead) {
     const leadNome = lead.nome?.trim() || "Lead WhatsApp";
     const statusAtual = getLeadColumnId(lead);
 
@@ -1018,7 +1087,11 @@ function LeadsPage() {
               className="h-9 min-w-0 px-2 text-xs"
               asChild
             >
-              <a href={montarLinkWhatsApp(lead)} target="_blank" rel="noreferrer">
+              <a
+                href={montarLinkWhatsApp(lead)}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <Phone className="mr-1 size-4 shrink-0" />
                 <span className="truncate">WhatsApp</span>
               </a>
@@ -1219,7 +1292,7 @@ function LeadsPage() {
             </div>
           ) : (
             <div className="w-full overflow-x-auto pb-3">
-              <div className="grid min-w-[1680px] grid-cols-6 gap-4">
+              <div className="flex min-w-max gap-4">
                 {KANBAN_COLUMNS.map((column) => {
                   const Icon = column.icon;
                   const leadsColuna = leadsPorColuna[column.id];
@@ -1227,7 +1300,8 @@ function LeadsPage() {
                   return (
                     <section
                       key={column.id}
-                      className={`flex max-h-[calc(100vh-260px)] min-h-[520px] min-w-0 flex-col rounded-xl border ${getColumnClass(
+                      style={{ width: largurasColunas[column.id] }}
+                      className={`relative flex max-h-[calc(100vh-260px)] min-h-[520px] shrink-0 flex-col rounded-xl border ${getColumnClass(
                         column.id
                       )}`}
                     >
@@ -1272,6 +1346,16 @@ function LeadsPage() {
                           leadsColuna.map((lead) => renderLeadCard(lead))
                         )}
                       </div>
+
+                      <div
+                        role="separator"
+                        aria-label={`Redimensionar coluna ${column.title}`}
+                        title="Segure e arraste para aumentar ou diminuir a largura da coluna"
+                        onMouseDown={(event) =>
+                          iniciarResizeColuna(column.id, event)
+                        }
+                        className="absolute right-0 top-0 z-20 h-full w-2 cursor-col-resize rounded-r-xl hover:bg-primary/20"
+                      />
                     </section>
                   );
                 })}
@@ -1280,8 +1364,7 @@ function LeadsPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog
+            <Dialog
         open={!!leadSelecionado}
         onOpenChange={(open) => {
           if (!open) setLeadSelecionado(null);
@@ -1685,6 +1768,20 @@ function LeadsPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="valor-matricula">Valor da matrícula</Label>
+              <Input
+                id="valor-matricula"
+                value={valorMatricula}
+                onChange={(e) => setValorMatricula(e.target.value)}
+                placeholder="Exemplo: 100,00 ou 0,00 se for isento"
+              />
+              <p className="text-xs text-muted-foreground">
+                Informe o valor final após desconto. Use 0,00 se a matrícula for
+                isenta.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="dia-vencimento">Dia do vencimento</Label>
               <Input
                 id="dia-vencimento"
@@ -1708,8 +1805,8 @@ function LeadsPage() {
 
             {converterAlunoMutation.isError && (
               <p className="text-sm text-destructive">
-                Erro ao converter lead em aluno. Confira se pelo menos uma turma
-                foi selecionada e tente novamente.
+                Erro ao converter lead em aluno. Confira turma, mensalidade,
+                matrícula e dia de vencimento.
               </p>
             )}
 
