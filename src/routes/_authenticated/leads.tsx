@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import {
   MessageSquare,
   Phone,
   Search,
+  Send,
   UserCheck,
   UserPlus,
   XCircle,
@@ -35,6 +36,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
 });
+
+const WEBHOOK_ENVIAR_WHATSAPP =
+  "https://thirstygull-n8n.cloudfy.live/webhook/enviar-whatsapp-crm";
 
 type Lead = {
   id: string;
@@ -369,6 +373,9 @@ function LeadsPage() {
 
   const [busca, setBusca] = useState("");
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null);
+  const [mensagemWhatsApp, setMensagemWhatsApp] = useState("");
+  const scrollKanbanTopoRef = useRef<HTMLDivElement | null>(null);
+  const scrollKanbanBaixoRef = useRef<HTMLDivElement | null>(null);
   const [leadsPainel, setLeadsPainel] = useState<Lead[]>([]);
   const [largurasColunas, setLargurasColunas] = useState<
     Record<KanbanColumnId, number>
@@ -533,6 +540,55 @@ function LeadsPage() {
       if (error) throw error;
 
       return (data ?? []) as LeadInteracao[];
+    },
+  });
+
+  const enviarWhatsAppMutation = useMutation({
+    mutationFn: async () => {
+      if (!leadSelecionado) {
+        throw new Error("Nenhum lead selecionado.");
+      }
+
+      const mensagem = mensagemWhatsApp.trim();
+
+      if (!mensagem) {
+        throw new Error("Digite uma mensagem antes de enviar.");
+      }
+
+      const response = await fetch(WEBHOOK_ENVIAR_WHATSAPP, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lead_id: leadSelecionado.id,
+          nome: leadSelecionado.nome || "Lead",
+          telefone: leadSelecionado.telefone,
+          mensagem,
+        }),
+      });
+
+      if (!response.ok) {
+        const textoErro = await response.text();
+        throw new Error(textoErro || "Erro ao enviar mensagem pelo WhatsApp.");
+      }
+
+      return true;
+    },
+    onSuccess: async () => {
+      toast.success("Mensagem enviada pelo WhatsApp");
+      setMensagemWhatsApp("");
+
+      await queryClient.invalidateQueries({
+        queryKey: ["lead_interacoes", leadSelecionado?.id],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["leads"],
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao enviar mensagem pelo WhatsApp");
     },
   });
 
@@ -942,8 +998,32 @@ function LeadsPage() {
     leadSelecionado?.historico ?? null
   );
 
+  const larguraTotalKanban = useMemo(() => {
+    const larguraColunas = Object.values(largurasColunas).reduce(
+      (total, largura) => total + largura,
+      0
+    );
+
+    const larguraGaps = Math.max(KANBAN_COLUMNS.length - 1, 0) * 16;
+
+    return larguraColunas + larguraGaps;
+  }, [largurasColunas]);
+
+  function sincronizarScrollKanban(
+    origem: "topo" | "baixo",
+    scrollLeft: number
+  ) {
+    const destino =
+      origem === "topo" ? scrollKanbanBaixoRef.current : scrollKanbanTopoRef.current;
+
+    if (destino && destino.scrollLeft !== scrollLeft) {
+      destino.scrollLeft = scrollLeft;
+    }
+  }
+
   function abrirModalVisitaParaLead(lead: Lead) {
     setLeadSelecionado(lead);
+    setMensagemWhatsApp("");
     setDataVisita("");
     setObservacaoVisita(lead.observacao_visita || "");
     setModalVisitaAberto(true);
@@ -951,6 +1031,7 @@ function LeadsPage() {
 
   function abrirModalConversaoParaLead(lead: Lead) {
     setLeadSelecionado(lead);
+    setMensagemWhatsApp("");
     setTurmasSelecionadas([]);
     setValorMensalidade("");
     setValorMatricula("");
@@ -1075,7 +1156,10 @@ function LeadsPage() {
               size="sm"
               variant="outline"
               className="h-9 min-w-0 px-2 text-xs"
-              onClick={() => setLeadSelecionado(lead)}
+              onClick={() => {
+                    setLeadSelecionado(lead);
+                    setMensagemWhatsApp("");
+                  }}
             >
               <MessageSquare className="mr-1 size-4 shrink-0" />
               <span className="truncate">Ver</span>
@@ -1291,8 +1375,25 @@ function LeadsPage() {
               Nenhum lead encontrado.
             </div>
           ) : (
-            <div className="w-full overflow-x-auto pb-3">
-              <div className="flex min-w-max gap-4">
+            <div className="space-y-2">
+              <div
+                ref={scrollKanbanTopoRef}
+                className="h-4 w-full overflow-x-auto overflow-y-hidden"
+                onScroll={(event) =>
+                  sincronizarScrollKanban("topo", event.currentTarget.scrollLeft)
+                }
+              >
+                <div style={{ width: larguraTotalKanban }} className="h-1" />
+              </div>
+
+              <div
+                ref={scrollKanbanBaixoRef}
+                className="w-full overflow-x-auto pb-3"
+                onScroll={(event) =>
+                  sincronizarScrollKanban("baixo", event.currentTarget.scrollLeft)
+                }
+              >
+                <div className="flex min-w-max gap-4">
                 {KANBAN_COLUMNS.map((column) => {
                   const Icon = column.icon;
                   const leadsColuna = leadsPorColuna[column.id];
@@ -1359,6 +1460,7 @@ function LeadsPage() {
                     </section>
                   );
                 })}
+                </div>
               </div>
             </div>
           )}
@@ -1367,7 +1469,10 @@ function LeadsPage() {
             <Dialog
         open={!!leadSelecionado}
         onOpenChange={(open) => {
-          if (!open) setLeadSelecionado(null);
+          if (!open) {
+            setLeadSelecionado(null);
+            setMensagemWhatsApp("");
+          }
         }}
       >
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
@@ -1609,6 +1714,36 @@ function LeadsPage() {
                     Nenhum histórico registrado para este lead.
                   </p>
                 )}
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <Send className="size-5 text-muted-foreground" />
+                <h2 className="font-display text-lg font-semibold">
+                  Enviar mensagem pelo WhatsApp
+                </h2>
+              </div>
+
+              <Textarea
+                value={mensagemWhatsApp}
+                onChange={(event) => setMensagemWhatsApp(event.target.value)}
+                placeholder="Digite a mensagem para enviar pelo WhatsApp..."
+                rows={4}
+              />
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => enviarWhatsAppMutation.mutate()}
+                  disabled={
+                    enviarWhatsAppMutation.isPending || !mensagemWhatsApp.trim()
+                  }
+                >
+                  <Send className="mr-2 size-4" />
+                  {enviarWhatsAppMutation.isPending
+                    ? "Enviando..."
+                    : "Enviar WhatsApp"}
+                </Button>
               </div>
             </section>
           </div>
