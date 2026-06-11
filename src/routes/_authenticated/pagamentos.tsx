@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { formatBRL, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/pagamentos")({
@@ -29,9 +30,15 @@ type Pagamento = {
   valor: number | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
+  forma_pagamento: string | null;
   status: string | null;
   observacoes: string | null;
 };
+
+function normalizarValor(valor: number | null | undefined): number {
+  if (valor == null) return 0;
+  return valor >= 1000 ? valor / 100 : valor;
+}
 
 function PagamentosPage() {
   const [busca, setBusca] = useState("");
@@ -64,6 +71,7 @@ function PagamentosPage() {
         p.valor,
         p.data_pagamento,
         p.data_vencimento,
+        p.forma_pagamento,
         p.status,
         p.observacoes,
       ]
@@ -76,7 +84,7 @@ function PagamentosPage() {
   }, [data, busca]);
 
   const total = pagamentosFiltrados.reduce(
-    (s, p) => s + Number(p.valor || 0),
+    (soma, pagamento) => soma + normalizarValor(pagamento.valor),
     0
   );
 
@@ -84,6 +92,7 @@ function PagamentosPage() {
     <div className="space-y-6">
       <header>
         <h1 className="font-display text-3xl font-semibold">Pagamentos</h1>
+
         <p className="text-muted-foreground mt-1">
           Histórico completo de pagamentos recebidos.
         </p>
@@ -96,15 +105,17 @@ function PagamentosPage() {
               {pagamentosFiltrados.length} pagamento
               {pagamentosFiltrados.length === 1 ? "" : "s"}
             </span>
+
             <span className="text-primary">{formatBRL(total)}</span>
           </CardTitle>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, telefone, turma, valor ou data..."
+              placeholder="Buscar por nome, telefone, turma, valor, forma ou data..."
               className="pl-10"
             />
           </div>
@@ -120,8 +131,10 @@ function PagamentosPage() {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Turma</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Forma</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observações</TableHead>
+                  <TableHead className="text-right">Recibo</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -129,7 +142,7 @@ function PagamentosPage() {
                 {isLoading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Carregando...
@@ -138,7 +151,7 @@ function PagamentosPage() {
                 ) : pagamentosFiltrados.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Nenhum pagamento encontrado.
@@ -159,7 +172,11 @@ function PagamentosPage() {
 
                       <TableCell>{p.turma ?? "—"}</TableCell>
 
-                      <TableCell>{formatBRL(Number(p.valor ?? 0))}</TableCell>
+                      <TableCell>
+                        {formatBRL(normalizarValor(p.valor))}
+                      </TableCell>
+
+                      <TableCell>{p.forma_pagamento ?? "—"}</TableCell>
 
                       <TableCell>
                         <Badge className="bg-success/15 text-success">
@@ -167,8 +184,22 @@ function PagamentosPage() {
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
                         {p.observacoes ?? "—"}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link
+                            to="/recibos/$mensalidadeId"
+                            params={{
+                              mensalidadeId: String(p.id),
+                            }}
+                          >
+                            <FileText className="mr-2 size-4" />
+                            Recibo
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
