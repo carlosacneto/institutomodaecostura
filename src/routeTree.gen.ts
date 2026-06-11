@@ -24,6 +24,7 @@ import { Route as AuthenticatedAlunosRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos.index'
 import { Route as AuthenticatedAlunosIndexRouteImport } from './routes/_authenticated/alunos.index'
 import { Route as AuthenticatedTurmasTurmaIdRouteImport } from './routes/_authenticated/turmas.$turmaId'
+import { Route as AuthenticatedRecibosMensalidadeIdRouteImport } from './routes/_authenticated/recibos.$mensalidadeId'
 import { Route as AuthenticatedContratosAlunoIdRouteImport } from './routes/_authenticated/contratos.$alunoId'
 import { Route as AuthenticatedAlunosAlunoIdRouteImport } from './routes/_authenticated/alunos.$alunoId'
 
@@ -106,6 +107,12 @@ const AuthenticatedTurmasTurmaIdRoute =
     path: '/$turmaId',
     getParentRoute: () => AuthenticatedTurmasRoute,
   } as any)
+const AuthenticatedRecibosMensalidadeIdRoute =
+  AuthenticatedRecibosMensalidadeIdRouteImport.update({
+    id: '/recibos/$mensalidadeId',
+    path: '/recibos/$mensalidadeId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedContratosAlunoIdRoute =
   AuthenticatedContratosAlunoIdRouteImport.update({
     id: '/contratos/$alunoId',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/turmas': typeof AuthenticatedTurmasRouteWithChildren
   '/alunos/$alunoId': typeof AuthenticatedAlunosAlunoIdRoute
   '/contratos/$alunoId': typeof AuthenticatedContratosAlunoIdRoute
+  '/recibos/$mensalidadeId': typeof AuthenticatedRecibosMensalidadeIdRoute
   '/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
   '/alunos/': typeof AuthenticatedAlunosIndexRoute
   '/contratos/': typeof AuthenticatedContratosIndexRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/turmas': typeof AuthenticatedTurmasRouteWithChildren
   '/alunos/$alunoId': typeof AuthenticatedAlunosAlunoIdRoute
   '/contratos/$alunoId': typeof AuthenticatedContratosAlunoIdRoute
+  '/recibos/$mensalidadeId': typeof AuthenticatedRecibosMensalidadeIdRoute
   '/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
   '/alunos': typeof AuthenticatedAlunosIndexRoute
   '/contratos': typeof AuthenticatedContratosIndexRoute
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/turmas': typeof AuthenticatedTurmasRouteWithChildren
   '/_authenticated/alunos/$alunoId': typeof AuthenticatedAlunosAlunoIdRoute
   '/_authenticated/contratos/$alunoId': typeof AuthenticatedContratosAlunoIdRoute
+  '/_authenticated/recibos/$mensalidadeId': typeof AuthenticatedRecibosMensalidadeIdRoute
   '/_authenticated/turmas/$turmaId': typeof AuthenticatedTurmasTurmaIdRoute
   '/_authenticated/alunos/': typeof AuthenticatedAlunosIndexRoute
   '/_authenticated/contratos/': typeof AuthenticatedContratosIndexRoute
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/turmas'
     | '/alunos/$alunoId'
     | '/contratos/$alunoId'
+    | '/recibos/$mensalidadeId'
     | '/turmas/$turmaId'
     | '/alunos/'
     | '/contratos/'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/turmas'
     | '/alunos/$alunoId'
     | '/contratos/$alunoId'
+    | '/recibos/$mensalidadeId'
     | '/turmas/$turmaId'
     | '/alunos'
     | '/contratos'
@@ -226,6 +238,7 @@ export interface FileRouteTypes {
     | '/_authenticated/turmas'
     | '/_authenticated/alunos/$alunoId'
     | '/_authenticated/contratos/$alunoId'
+    | '/_authenticated/recibos/$mensalidadeId'
     | '/_authenticated/turmas/$turmaId'
     | '/_authenticated/alunos/'
     | '/_authenticated/contratos/'
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTurmasTurmaIdRouteImport
       parentRoute: typeof AuthenticatedTurmasRoute
     }
+    '/_authenticated/recibos/$mensalidadeId': {
+      id: '/_authenticated/recibos/$mensalidadeId'
+      path: '/recibos/$mensalidadeId'
+      fullPath: '/recibos/$mensalidadeId'
+      preLoaderRoute: typeof AuthenticatedRecibosMensalidadeIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/contratos/$alunoId': {
       id: '/_authenticated/contratos/$alunoId'
       path: '/contratos/$alunoId'
@@ -396,6 +416,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPagamentosRoute: typeof AuthenticatedPagamentosRoute
   AuthenticatedTurmasRoute: typeof AuthenticatedTurmasRouteWithChildren
   AuthenticatedContratosAlunoIdRoute: typeof AuthenticatedContratosAlunoIdRoute
+  AuthenticatedRecibosMensalidadeIdRoute: typeof AuthenticatedRecibosMensalidadeIdRoute
   AuthenticatedContratosIndexRoute: typeof AuthenticatedContratosIndexRoute
 }
 
@@ -410,6 +431,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPagamentosRoute: AuthenticatedPagamentosRoute,
   AuthenticatedTurmasRoute: AuthenticatedTurmasRouteWithChildren,
   AuthenticatedContratosAlunoIdRoute: AuthenticatedContratosAlunoIdRoute,
+  AuthenticatedRecibosMensalidadeIdRoute:
+    AuthenticatedRecibosMensalidadeIdRoute,
   AuthenticatedContratosIndexRoute: AuthenticatedContratosIndexRoute,
 }
 

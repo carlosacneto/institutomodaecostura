@@ -564,6 +564,7 @@ function AlunoDetalhePage() {
                   <TableHead>Forma</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observações</TableHead>
+                  <TableHead className="text-right">Recibo</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -571,7 +572,7 @@ function AlunoDetalhePage() {
                 {carregandoMensalidades ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="py-8 text-center text-muted-foreground"
                     >
                       Carregando histórico financeiro...
@@ -580,7 +581,7 @@ function AlunoDetalhePage() {
                 ) : erroMensalidades ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="py-8 text-center text-destructive"
                     >
                       Erro ao carregar mensalidades.
@@ -589,44 +590,70 @@ function AlunoDetalhePage() {
                 ) : mensalidades.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="py-8 text-center text-muted-foreground"
                     >
                       Nenhuma mensalidade encontrada para este aluno.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  mensalidades.map((mensalidade) => (
-                    <TableRow key={mensalidade.id}>
-                      <TableCell>
-                        {formatDateBR(mensalidade.data_vencimento)}
-                      </TableCell>
+                  mensalidades.map((mensalidade) => {
+                    const pago =
+                      mensalidade.status?.toLowerCase() === "pago";
 
-                      <TableCell>
-                        {formatDateBR(mensalidade.data_pagamento)}
-                      </TableCell>
+                    return (
+                      <TableRow key={mensalidade.id}>
+                        <TableCell>
+                          {formatDateBR(mensalidade.data_vencimento)}
+                        </TableCell>
 
-                      <TableCell>{formatBRL(mensalidade.valor)}</TableCell>
+                        <TableCell>
+                          {formatDateBR(mensalidade.data_pagamento)}
+                        </TableCell>
 
-                      <TableCell>
-                        {mensalidade.forma_pagamento ?? "—"}
-                      </TableCell>
+                        <TableCell>{formatBRL(mensalidade.valor)}</TableCell>
 
-                      <TableCell>
-                        <Badge
-                          className={statusMensalidadeClass(
-                            mensalidade.status
+                        <TableCell>
+                          {mensalidade.forma_pagamento ?? "—"}
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            className={statusMensalidadeClass(
+                              mensalidade.status
+                            )}
+                          >
+                            {mensalidade.status ?? "—"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
+                          {mensalidade.observacoes ?? "—"}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          {pago ? (
+                            <Button size="sm" variant="outline" asChild>
+                              <Link
+                                to="/recibos/$mensalidadeId"
+                                params={{
+                                  mensalidadeId: String(mensalidade.id),
+                                }}
+                              >
+                                <FileText className="mr-2 size-4" />
+                                Recibo
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" disabled>
+                              <FileText className="mr-2 size-4" />
+                              Recibo
+                            </Button>
                           )}
-                        >
-                          {mensalidade.status ?? "—"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
-                        {mensalidade.observacoes ?? "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
