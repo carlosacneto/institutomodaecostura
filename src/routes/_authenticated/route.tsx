@@ -21,8 +21,6 @@ import {
   LogOut,
   Scissors,
   Menu,
-  X,
-  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,7 +30,11 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/auth" });
+
+    if (!data.user) {
+      throw redirect({ to: "/auth" });
+    }
+
     return { user: data.user };
   },
   component: AuthenticatedLayout,
@@ -42,7 +44,6 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/alunos", label: "Alunos", icon: Users },
-  { to: "/contratos", label: "Contratos", icon: FileText },
   { to: "/turmas", label: "Turmas", icon: GraduationCap },
   { to: "/mensalidades", label: "Mensalidades", icon: Receipt },
   { to: "/pagamentos", label: "Pagamentos", icon: CreditCard },
@@ -54,6 +55,7 @@ const NAV = [
 function AuthenticatedLayout() {
   const navigate = useNavigate();
   const { location } = useRouterState();
+
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -69,13 +71,17 @@ function AuthenticatedLayout() {
 
   async function logout() {
     await supabase.auth.signOut();
+
     toast.success("Sessão encerrada");
-    navigate({ to: "/auth", replace: true });
+
+    navigate({
+      to: "/auth",
+      replace: true,
+    });
   }
 
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed lg:sticky inset-y-0 left-0 z-40 w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform lg:translate-x-0",
@@ -92,6 +98,7 @@ function AuthenticatedLayout() {
             <div className="font-display font-semibold text-base">
               Instituto Moda e Costura
             </div>
+
             <div className="text-[11px] text-muted-foreground">
               Escola de Costura
             </div>
@@ -123,8 +130,13 @@ function AuthenticatedLayout() {
             {email}
           </div>
 
-          <Button variant="ghost" className="w-full justify-start" onClick={logout}>
-            <LogOut className="size-4 mr-2" /> Sair
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={logout}
+          >
+            <LogOut className="size-4 mr-2" />
+            Sair
           </Button>
         </div>
       </aside>
@@ -143,7 +155,8 @@ function AuthenticatedLayout() {
           </button>
 
           <div className="flex items-center gap-2 font-display font-semibold">
-            <Scissors className="size-4 text-primary" /> Instituto Moda e Costura
+            <Scissors className="size-4 text-primary" />
+            Instituto Moda e Costura
           </div>
 
           <div className="w-5" />
