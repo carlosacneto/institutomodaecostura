@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,23 +16,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
+  CalendarCheck,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
+  Columns3,
   ExternalLink,
   MessageSquare,
   Phone,
   Search,
+  UserCheck,
   UserPlus,
+  XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
@@ -94,14 +91,135 @@ type Turma = {
   created_at: string | null;
 };
 
+type KanbanColumnId =
+  | "novo"
+  | "atendimento"
+  | "visita"
+  | "matriculado"
+  | "sem_resposta"
+  | "perdido";
+
+type StatusLeadCanonico =
+  | "novo"
+  | "em_atendimento"
+  | "visita_agendada"
+  | "matriculado"
+  | "sem_resposta"
+  | "perdido";
+
+type KanbanColumn = {
+  id: KanbanColumnId;
+  title: string;
+  description: string;
+  icon: typeof UserPlus;
+};
+
+const KANBAN_COLUMNS: KanbanColumn[] = [
+  {
+    id: "novo",
+    title: "Novo Lead",
+    description: "Leads recém-chegados",
+    icon: UserPlus,
+  },
+  {
+    id: "atendimento",
+    title: "Em atendimento",
+    description: "Conversas em andamento",
+    icon: MessageSquare,
+  },
+  {
+    id: "visita",
+    title: "Agendou visita",
+    description: "Leads com visita marcada",
+    icon: CalendarCheck,
+  },
+  {
+    id: "matriculado",
+    title: "Matriculado",
+    description: "Leads convertidos em alunos",
+    icon: UserCheck,
+  },
+  {
+    id: "sem_resposta",
+    title: "Sem resposta",
+    description: "Aguardando retorno",
+    icon: CalendarClock,
+  },
+  {
+    id: "perdido",
+    title: "Perdido",
+    description: "Leads encerrados",
+    icon: XCircle,
+  },
+];
+
+function normalizarTexto(valor: string | null | undefined) {
+  return (valor ?? "")
+    .toString()
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function canonicalizarStatusLead(
+  status: string | null | undefined
+): StatusLeadCanonico {
+  const valor = normalizarTexto(status);
+
+  if (!valor || valor.includes("novo")) {
+    return "novo";
+  }
+
+  if (valor.includes("matriculado") || valor.includes("convertido")) {
+    return "matriculado";
+  }
+
+  if (valor.includes("perdido") || valor.includes("cancel")) {
+    return "perdido";
+  }
+
+  if (valor.includes("sem resposta") || valor.includes("sem retorno")) {
+    return "sem_resposta";
+  }
+
+  if (valor.includes("visita") || valor.includes("agend")) {
+    return "visita_agendada";
+  }
+
+  if (valor.includes("atendimento")) {
+    return "em_atendimento";
+  }
+
+  return "em_atendimento";
+}
+
+function formatStatusLead(status: string | null) {
+  const statusCanonico = canonicalizarStatusLead(status);
+
+  const map: Record<StatusLeadCanonico, string> = {
+    novo: "Novo Lead",
+    em_atendimento: "Em atendimento",
+    visita_agendada: "Visita agendada",
+    matriculado: "Matriculado",
+    sem_resposta: "Sem resposta",
+    perdido: "Perdido",
+  };
+
+  return map[statusCanonico];
+}
+
 function getPrioridadeClass(prioridade: string | null) {
-  const valor = prioridade?.toLowerCase();
+  const valor = normalizarTexto(prioridade);
 
   if (valor === "alta") {
     return "bg-destructive/15 text-destructive";
   }
 
-  if (valor === "média" || valor === "media") {
+  if (valor === "media") {
     return "bg-warning/15 text-warning";
   }
 
@@ -109,25 +227,29 @@ function getPrioridadeClass(prioridade: string | null) {
 }
 
 function getStatusClass(status: string | null) {
-  const valor = status?.toLowerCase();
+  const valor = canonicalizarStatusLead(status);
 
-  if (valor?.includes("novo")) {
+  if (valor === "novo") {
     return "bg-primary/15 text-primary";
   }
 
-  if (valor?.includes("atendimento")) {
+  if (valor === "em_atendimento") {
     return "bg-warning/15 text-warning";
   }
 
-  if (valor?.includes("visita")) {
-    return "bg-primary/15 text-primary";
+  if (valor === "visita_agendada") {
+    return "bg-blue-100 text-blue-700";
   }
 
-  if (valor?.includes("matriculado")) {
+  if (valor === "matriculado") {
     return "bg-success/15 text-success";
   }
 
-  if (valor?.includes("perdido")) {
+  if (valor === "sem_resposta") {
+    return "bg-slate-100 text-slate-700";
+  }
+
+  if (valor === "perdido") {
     return "bg-destructive/15 text-destructive";
   }
 
@@ -135,17 +257,69 @@ function getStatusClass(status: string | null) {
 }
 
 function getTarefaStatusClass(status: string | null) {
-  const valor = status?.toLowerCase();
+  const valor = normalizarTexto(status);
 
-  if (valor?.includes("pendente")) {
+  if (valor.includes("pendente")) {
     return "bg-warning/15 text-warning";
   }
 
-  if (valor?.includes("conclu")) {
+  if (valor.includes("conclu")) {
     return "bg-success/15 text-success";
   }
 
   return "bg-muted text-muted-foreground";
+}
+
+function getColumnClass(columnId: KanbanColumnId) {
+  const map: Record<KanbanColumnId, string> = {
+    novo: "border-primary/30 bg-primary/5",
+    atendimento: "border-warning/30 bg-warning/5",
+    visita: "border-blue-300 bg-blue-50/70",
+    matriculado: "border-green-300 bg-green-50/70",
+    sem_resposta: "border-slate-300 bg-slate-50/70",
+    perdido: "border-destructive/30 bg-destructive/5",
+  };
+
+  return map[columnId];
+}
+
+function getColumnBadgeClass(columnId: KanbanColumnId) {
+  const map: Record<KanbanColumnId, string> = {
+    novo: "bg-primary/15 text-primary",
+    atendimento: "bg-warning/15 text-warning",
+    visita: "bg-blue-100 text-blue-700",
+    matriculado: "bg-green-100 text-green-700",
+    sem_resposta: "bg-slate-100 text-slate-700",
+    perdido: "bg-destructive/15 text-destructive",
+  };
+
+  return map[columnId];
+}
+
+function getLeadColumnId(lead: Lead): KanbanColumnId {
+  const status = canonicalizarStatusLead(lead.status);
+
+  if (lead.convertido_aluno || status === "matriculado") {
+    return "matriculado";
+  }
+
+  if (status === "perdido") {
+    return "perdido";
+  }
+
+  if (status === "sem_resposta") {
+    return "sem_resposta";
+  }
+
+  if (status === "em_atendimento") {
+    return "atendimento";
+  }
+
+  if (status === "visita_agendada") {
+    return "visita";
+  }
+
+  return "novo";
 }
 
 function formatDateTimeBR(value: string | null) {
@@ -204,6 +378,7 @@ function LeadsPage() {
 
   const [busca, setBusca] = useState("");
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null);
+  const [leadsPainel, setLeadsPainel] = useState<Lead[]>([]);
 
   const [modalVisitaAberto, setModalVisitaAberto] = useState(false);
   const [dataVisita, setDataVisita] = useState("");
@@ -218,7 +393,7 @@ function LeadsPage() {
   const supabaseAny = supabase as any;
 
   const {
-    data: leads = [],
+    data: leadsBanco = [],
     isLoading,
     isError,
   } = useQuery({
@@ -234,6 +409,39 @@ function LeadsPage() {
       return (data ?? []) as Lead[];
     },
   });
+
+  useEffect(() => {
+    setLeadsPainel(leadsBanco);
+  }, [leadsBanco]);
+
+  function atualizarLeadNoPainel(leadId: string, alteracoes: Partial<Lead>) {
+    setLeadsPainel((leadsAtuais) => {
+      const novaLista = leadsAtuais.map((lead) => {
+        if (lead.id !== leadId) return lead;
+
+        return {
+          ...lead,
+          ...alteracoes,
+        };
+      });
+
+      return [...novaLista].sort((a, b) => {
+        const dataA = new Date(a.atualizado_em ?? a.criado_em ?? 0).getTime();
+        const dataB = new Date(b.atualizado_em ?? b.criado_em ?? 0).getTime();
+
+        return dataB - dataA;
+      });
+    });
+
+    setLeadSelecionado((leadAtual) => {
+      if (!leadAtual || leadAtual.id !== leadId) return leadAtual;
+
+      return {
+        ...leadAtual,
+        ...alteracoes,
+      };
+    });
+  }
 
   const {
     data: turmas = [],
@@ -293,6 +501,75 @@ function LeadsPage() {
     },
   });
 
+  const atualizarStatusMutation = useMutation({
+    mutationFn: async ({
+      lead,
+      status,
+      proximaAcao,
+    }: {
+      lead: Lead;
+      status: StatusLeadCanonico;
+      proximaAcao: string | null;
+    }) => {
+      const agora = new Date().toISOString();
+
+      const payload: Partial<Lead> = {
+        status,
+        proxima_acao: proximaAcao,
+        atualizado_em: agora,
+      };
+
+      if (status !== "visita_agendada") {
+        payload.visita_agendada_em = null;
+        payload.observacao_visita = null;
+      }
+
+      const { error } = await supabaseAny
+        .from("leads")
+        .update(payload)
+        .eq("id", lead.id);
+
+      if (error) throw error;
+
+      return {
+        ...lead,
+        ...payload,
+      } as Lead;
+    },
+    onMutate: (variables) => {
+      const agora = new Date().toISOString();
+
+      const alteracoes: Partial<Lead> = {
+        status: variables.status,
+        proxima_acao: variables.proximaAcao,
+        atualizado_em: agora,
+      };
+
+      if (variables.status !== "visita_agendada") {
+        alteracoes.visita_agendada_em = null;
+        alteracoes.observacao_visita = null;
+      }
+
+      atualizarLeadNoPainel(variables.lead.id, alteracoes);
+    },
+    onSuccess: async (leadAtualizado) => {
+      atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
+
+      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
+        if (!leadsAtuais) return leadsAtuais;
+
+        return leadsAtuais.map((lead) =>
+          lead.id === leadAtualizado.id ? leadAtualizado : lead
+        );
+      });
+
+      toast.success("Status do lead atualizado");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao atualizar status do lead");
+    },
+  });
+
   const marcarVisitaMutation = useMutation({
     mutationFn: async () => {
       if (!leadSelecionado) {
@@ -304,16 +581,19 @@ function LeadsPage() {
       }
 
       const visitaISO = new Date(dataVisita).toISOString();
+      const agora = new Date().toISOString();
+
+      const payload: Partial<Lead> = {
+        status: "visita_agendada",
+        visita_agendada_em: visitaISO,
+        observacao_visita: observacaoVisita || null,
+        proxima_acao: "Confirmar presença na visita",
+        atualizado_em: agora,
+      };
 
       const { error: leadError } = await supabaseAny
         .from("leads")
-        .update({
-          status: "visita_agendada",
-          visita_agendada_em: visitaISO,
-          observacao_visita: observacaoVisita || null,
-          proxima_acao: "Confirmar presença na visita",
-          atualizado_em: new Date().toISOString(),
-        })
+        .update(payload)
         .eq("id", leadSelecionado.id);
 
       if (leadError) throw leadError;
@@ -332,29 +612,48 @@ function LeadsPage() {
         });
 
       if (tarefaError) throw tarefaError;
+
+      return {
+        ...leadSelecionado,
+        ...payload,
+      } as Lead;
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["leads"] });
+    onMutate: () => {
+      if (!leadSelecionado || !dataVisita) return;
+
+      const visitaISO = new Date(dataVisita).toISOString();
+
+      atualizarLeadNoPainel(leadSelecionado.id, {
+        status: "visita_agendada",
+        visita_agendada_em: visitaISO,
+        observacao_visita: observacaoVisita || null,
+        proxima_acao: "Confirmar presença na visita",
+        atualizado_em: new Date().toISOString(),
+      });
+    },
+    onSuccess: async (leadAtualizado) => {
+      atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
+
+      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
+        if (!leadsAtuais) return leadsAtuais;
+
+        return leadsAtuais.map((lead) =>
+          lead.id === leadAtualizado.id ? leadAtualizado : lead
+        );
+      });
+
       await queryClient.invalidateQueries({
         queryKey: ["lead_tarefas", leadSelecionado?.id],
       });
 
-      setLeadSelecionado((leadAtual) => {
-        if (!leadAtual) return leadAtual;
-
-        return {
-          ...leadAtual,
-          status: "visita_agendada",
-          visita_agendada_em: new Date(dataVisita).toISOString(),
-          observacao_visita: observacaoVisita || null,
-          proxima_acao: "Confirmar presença na visita",
-          atualizado_em: new Date().toISOString(),
-        };
-      });
+      toast.success("Visita marcada com sucesso");
 
       setModalVisitaAberto(false);
       setDataVisita("");
       setObservacaoVisita("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao marcar visita");
     },
   });
 
@@ -423,16 +722,18 @@ function LeadsPage() {
 
       const agora = new Date().toISOString();
 
+      const payloadLead: Partial<Lead> = {
+        status: "matriculado",
+        convertido_aluno: true,
+        aluno_id: alunoCriado.id,
+        convertido_em: agora,
+        proxima_acao: "Aluno matriculado",
+        atualizado_em: agora,
+      };
+
       const { error: leadError } = await supabaseAny
         .from("leads")
-        .update({
-          status: "matriculado",
-          convertido_aluno: true,
-          aluno_id: alunoCriado.id,
-          convertido_em: agora,
-          proxima_acao: "Aluno matriculado",
-          atualizado_em: agora,
-        })
+        .update(payloadLead)
         .eq("id", leadSelecionado.id);
 
       if (leadError) throw leadError;
@@ -465,30 +766,39 @@ function LeadsPage() {
 
       if (conversaoError) throw conversaoError;
 
-      return alunoCriado;
+      return {
+        ...leadSelecionado,
+        ...payloadLead,
+      } as Lead;
     },
-    onSuccess: async (alunoCriado) => {
-      await queryClient.invalidateQueries({ queryKey: ["leads"] });
+    onMutate: () => {
+      if (!leadSelecionado) return;
+
+      atualizarLeadNoPainel(leadSelecionado.id, {
+        status: "matriculado",
+        convertido_aluno: true,
+        proxima_acao: "Aluno matriculado",
+        atualizado_em: new Date().toISOString(),
+      });
+    },
+    onSuccess: async (leadAtualizado) => {
+      atualizarLeadNoPainel(leadAtualizado.id, leadAtualizado);
+
+      queryClient.setQueryData<Lead[]>(["leads"], (leadsAtuais) => {
+        if (!leadsAtuais) return leadsAtuais;
+
+        return leadsAtuais.map((lead) =>
+          lead.id === leadAtualizado.id ? leadAtualizado : lead
+        );
+      });
+
       await queryClient.invalidateQueries({ queryKey: ["turmas"] });
+      await queryClient.invalidateQueries({ queryKey: ["alunos"] });
       await queryClient.invalidateQueries({
         queryKey: ["lead_tarefas", leadSelecionado?.id],
       });
 
-      const agora = new Date().toISOString();
-
-      setLeadSelecionado((leadAtual) => {
-        if (!leadAtual) return leadAtual;
-
-        return {
-          ...leadAtual,
-          status: "matriculado",
-          convertido_aluno: true,
-          aluno_id: alunoCriado.id,
-          convertido_em: agora,
-          proxima_acao: "Aluno matriculado",
-          atualizado_em: agora,
-        };
-      });
+      toast.success("Lead convertido em aluno");
 
       setModalConversaoAberto(false);
       setTurmasSelecionadas([]);
@@ -496,14 +806,17 @@ function LeadsPage() {
       setDiaVencimento("");
       setObservacoesAluno("");
     },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao converter lead em aluno");
+    },
   });
 
   const leadsFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
 
-    if (!termo) return leads;
+    if (!termo) return leadsPainel;
 
-    return leads.filter((lead) => {
+    return leadsPainel.filter((lead) => {
       const textoBusca = [
         lead.nome,
         lead.telefone,
@@ -524,47 +837,72 @@ function LeadsPage() {
 
       return textoBusca.includes(termo);
     });
-  }, [leads, busca]);
+  }, [leadsPainel, busca]);
+
+  const leadsPorColuna = useMemo(() => {
+    const colunas: Record<KanbanColumnId, Lead[]> = {
+      novo: [],
+      atendimento: [],
+      visita: [],
+      matriculado: [],
+      sem_resposta: [],
+      perdido: [],
+    };
+
+    for (const lead of leadsFiltrados) {
+      const coluna = getLeadColumnId(lead);
+
+      colunas[coluna].push(lead);
+    }
+
+    return colunas;
+  }, [leadsFiltrados]);
 
   const totalLeads = leadsFiltrados.length;
 
   const leadsAltaPrioridade = leadsFiltrados.filter(
-    (lead) => lead.prioridade?.toLowerCase() === "alta"
+    (lead) => normalizarTexto(lead.prioridade) === "alta"
   ).length;
 
-  const novosLeads = leadsFiltrados.filter((lead) =>
-    lead.status?.toLowerCase().includes("novo")
-  ).length;
-
-  const leadsMatriculados = leadsFiltrados.filter(
-    (lead) =>
-      lead.convertido_aluno || lead.status?.toLowerCase() === "matriculado"
-  ).length;
+  const novosLeads = leadsPorColuna.novo.length;
+  const leadsMatriculados = leadsPorColuna.matriculado.length;
+  const leadsAgendaramVisita = leadsPorColuna.visita.length;
+  const leadsPerdidos = leadsPorColuna.perdido.length;
 
   const historicoAntigoSelecionado = formatHistorico(
     leadSelecionado?.historico ?? null
   );
 
-  function abrirModalVisita() {
-    if (!leadSelecionado) return;
-
+  function abrirModalVisitaParaLead(lead: Lead) {
+    setLeadSelecionado(lead);
     setDataVisita("");
-    setObservacaoVisita(leadSelecionado.observacao_visita || "");
+    setObservacaoVisita(lead.observacao_visita || "");
     setModalVisitaAberto(true);
   }
 
-  function abrirModalConversao() {
-    if (!leadSelecionado) return;
-
+  function abrirModalConversaoParaLead(lead: Lead) {
+    setLeadSelecionado(lead);
     setTurmasSelecionadas([]);
     setValorMensalidade("");
     setDiaVencimento("");
     setObservacoesAluno(
       `Aluno convertido a partir do lead. Origem: ${
-        leadSelecionado.origem || "não informada"
+        lead.origem || "não informada"
       }.`
     );
     setModalConversaoAberto(true);
+  }
+
+  function abrirModalVisita() {
+    if (!leadSelecionado) return;
+
+    abrirModalVisitaParaLead(leadSelecionado);
+  }
+
+  function abrirModalConversao() {
+    if (!leadSelecionado) return;
+
+    abrirModalConversaoParaLead(leadSelecionado);
   }
 
   function alternarTurmaSelecionada(turmaId: string) {
@@ -577,16 +915,214 @@ function LeadsPage() {
     });
   }
 
+  function atualizarStatusLead(
+    lead: Lead,
+    status: StatusLeadCanonico,
+    proximaAcao: string | null
+  ) {
+    atualizarStatusMutation.mutate({
+      lead,
+      status,
+      proximaAcao,
+    });
+  }
+
+  function renderLeadCard(lead: Lead) {
+    const leadNome = lead.nome?.trim() || "Lead WhatsApp";
+    const statusAtual = getLeadColumnId(lead);
+
+    const atualizando =
+      atualizarStatusMutation.isPending ||
+      marcarVisitaMutation.isPending ||
+      converterAlunoMutation.isPending;
+
+    const buttonClass =
+      "h-auto min-h-8 min-w-0 px-2 py-1.5 text-xs leading-tight !whitespace-normal";
+
+    return (
+      <Card
+        key={lead.id}
+        className="min-w-0 overflow-hidden border-border/70 bg-background shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <CardContent className="space-y-3 p-3">
+          <div className="space-y-2">
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="min-w-0 space-y-1">
+                <div className="break-words text-sm font-semibold leading-tight">
+                  {leadNome}
+                </div>
+
+                <div className="break-all text-xs leading-tight text-muted-foreground">
+                  {lead.telefone || "Telefone não informado"}
+                </div>
+              </div>
+
+              <Badge
+                className={`${getStatusClass(
+                  lead.status
+                )} h-auto max-w-full self-start break-words px-2 py-1 text-left text-[11px] leading-tight !whitespace-normal`}
+              >
+                {formatStatusLead(lead.status)}
+              </Badge>
+            </div>
+
+            <div className="flex min-w-0 flex-wrap gap-1.5">
+              <Badge
+                variant="secondary"
+                className="h-auto max-w-full break-words px-2 py-1 text-[11px] leading-tight !whitespace-normal"
+              >
+                {lead.intencao || "Sem intenção"}
+              </Badge>
+
+              <Badge
+                className={`${getPrioridadeClass(
+                  lead.prioridade
+                )} h-auto max-w-full break-words px-2 py-1 text-[11px] leading-tight !whitespace-normal`}
+              >
+                {lead.prioridade || "Sem prioridade"}
+              </Badge>
+            </div>
+
+            {lead.origem && (
+              <div className="break-words text-xs leading-tight text-muted-foreground">
+                Origem: {lead.origem}
+              </div>
+            )}
+
+            <p className="line-clamp-3 break-words text-sm leading-relaxed text-muted-foreground">
+              {lead.ultima_mensagem ||
+                lead.resumo_ia ||
+                "Sem mensagem recente."}
+            </p>
+
+            <div className="text-xs leading-tight text-muted-foreground">
+              Atualizado:{" "}
+              {formatDateTimeBR(lead.atualizado_em ?? lead.criado_em)}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-0 px-2 text-xs"
+              onClick={() => setLeadSelecionado(lead)}
+            >
+              <MessageSquare className="mr-1 size-4 shrink-0" />
+              <span className="truncate">Ver</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-0 px-2 text-xs"
+              asChild
+            >
+              <a href={montarLinkWhatsApp(lead)} target="_blank" rel="noreferrer">
+                <Phone className="mr-1 size-4 shrink-0" />
+                <span className="truncate">WhatsApp</span>
+              </a>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-t pt-3">
+            {statusAtual !== "atendimento" && statusAtual !== "matriculado" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className={buttonClass}
+                disabled={atualizando}
+                onClick={() =>
+                  atualizarStatusLead(
+                    lead,
+                    "em_atendimento",
+                    "Continuar atendimento pelo WhatsApp"
+                  )
+                }
+              >
+                Atender
+              </Button>
+            )}
+
+            {statusAtual !== "visita" && statusAtual !== "matriculado" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className={buttonClass}
+                disabled={atualizando}
+                onClick={() => abrirModalVisitaParaLead(lead)}
+              >
+                Visita
+              </Button>
+            )}
+
+            {statusAtual !== "sem_resposta" &&
+              statusAtual !== "matriculado" &&
+              statusAtual !== "perdido" && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={buttonClass}
+                  disabled={atualizando}
+                  onClick={() =>
+                    atualizarStatusLead(
+                      lead,
+                      "sem_resposta",
+                      "Tentar contato novamente"
+                    )
+                  }
+                >
+                  Sem resposta
+                </Button>
+              )}
+
+            {statusAtual !== "perdido" && statusAtual !== "matriculado" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className={buttonClass}
+                disabled={atualizando}
+                onClick={() =>
+                  atualizarStatusLead(lead, "perdido", "Lead encerrado")
+                }
+              >
+                Perdido
+              </Button>
+            )}
+
+            {statusAtual !== "matriculado" && (
+              <Button
+                size="sm"
+                className={`${buttonClass} col-span-2`}
+                disabled={converterAlunoMutation.isPending}
+                onClick={() => abrirModalConversaoParaLead(lead)}
+              >
+                Converter
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-3xl font-semibold">Leads</h1>
-        <p className="mt-1 text-muted-foreground">
-          Leads captados automaticamente pelo WhatsApp.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-semibold">Leads</h1>
+          <p className="mt-1 text-muted-foreground">
+            Kanban comercial dos leads captados automaticamente pelo WhatsApp.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground">
+          <Columns3 className="size-4" />
+          Kanban de atendimento
+        </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card className="border-border/60 shadow-[var(--shadow-soft)]">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -606,6 +1142,17 @@ function LeadsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">{novosLeads}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-[var(--shadow-soft)]">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Visitas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold">{leadsAgendaramVisita}</div>
           </CardContent>
         </Card>
 
@@ -634,15 +1181,20 @@ function LeadsPage() {
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
         <CardHeader className="space-y-4">
-          <CardTitle className="font-display flex justify-between text-lg">
+          <CardTitle className="font-display flex flex-wrap items-center justify-between gap-3 text-lg">
             <span>
               {leadsFiltrados.length} lead
-              {leadsFiltrados.length === 1 ? "" : "s"}
+              {leadsFiltrados.length === 1 ? "" : "s"} no funil
+            </span>
+
+            <span className="text-sm font-normal text-muted-foreground">
+              {leadsPerdidos} perdido{leadsPerdidos === 1 ? "" : "s"}
             </span>
           </CardTitle>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -653,115 +1205,79 @@ function LeadsPage() {
         </CardHeader>
 
         <CardContent>
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Intenção</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Última mensagem</TableHead>
-                  <TableHead>Ações</TableHead>
-                  <TableHead>Atualizado em</TableHead>
-                </TableRow>
-              </TableHeader>
+          {isLoading ? (
+            <div className="rounded-lg border p-8 text-center text-muted-foreground">
+              Carregando leads...
+            </div>
+          ) : isError ? (
+            <div className="rounded-lg border p-8 text-center text-destructive">
+              Erro ao carregar leads.
+            </div>
+          ) : leadsFiltrados.length === 0 ? (
+            <div className="rounded-lg border p-8 text-center text-muted-foreground">
+              Nenhum lead encontrado.
+            </div>
+          ) : (
+            <div className="w-full overflow-x-auto pb-3">
+              <div className="grid min-w-[1680px] grid-cols-6 gap-4">
+                {KANBAN_COLUMNS.map((column) => {
+                  const Icon = column.icon;
+                  const leadsColuna = leadsPorColuna[column.id];
 
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-8 text-center text-muted-foreground"
+                  return (
+                    <section
+                      key={column.id}
+                      className={`flex max-h-[calc(100vh-260px)] min-h-[520px] min-w-0 flex-col rounded-xl border ${getColumnClass(
+                        column.id
+                      )}`}
                     >
-                      Carregando leads...
-                    </TableCell>
-                  </TableRow>
-                ) : isError ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-8 text-center text-destructive"
-                    >
-                      Erro ao carregar leads.
-                    </TableCell>
-                  </TableRow>
-                ) : leadsFiltrados.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      Nenhum lead encontrado.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  leadsFiltrados.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className="font-medium">
-                        {lead.nome ?? "Lead WhatsApp"}
-                      </TableCell>
-
-                      <TableCell>{lead.telefone}</TableCell>
-
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {lead.intencao ?? "—"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge className={getPrioridadeClass(lead.prioridade)}>
-                          {lead.prioridade ?? "—"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge className={getStatusClass(lead.status)}>
-                          {lead.status ?? "Novo Lead"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="max-w-[260px] truncate text-sm text-muted-foreground">
-                        {lead.ultima_mensagem ?? "—"}
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setLeadSelecionado(lead)}
-                          >
-                            <MessageSquare className="mr-2 size-4" />
-                            Ver
-                          </Button>
-
-                          <Button size="sm" variant="outline" asChild>
-                            <a
-                              href={montarLinkWhatsApp(lead)}
-                              target="_blank"
-                              rel="noreferrer"
+                      <div className="sticky top-0 z-10 rounded-t-xl border-b bg-background/90 p-3 backdrop-blur">
+                        <div className="flex min-w-0 items-start justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={`grid size-8 shrink-0 place-items-center rounded-full ${getColumnBadgeClass(
+                                column.id
+                              )}`}
                             >
-                              <Phone className="mr-2 size-4" />
-                              WhatsApp
-                            </a>
-                          </Button>
-                        </div>
-                      </TableCell>
+                              <Icon className="size-4" />
+                            </span>
 
-                      <TableCell>
-                        {formatDateTimeBR(
-                          lead.atualizado_em ?? lead.criado_em
+                            <div className="min-w-0">
+                              <h2 className="break-words font-display text-sm font-semibold leading-tight">
+                                {column.title}
+                              </h2>
+
+                              <p className="break-words text-xs leading-tight text-muted-foreground">
+                                {column.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Badge
+                            className={`${getColumnBadgeClass(
+                              column.id
+                            )} shrink-0`}
+                          >
+                            {leadsColuna.length}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-3 overflow-y-auto p-3">
+                        {leadsColuna.length === 0 ? (
+                          <div className="rounded-lg border border-dashed bg-background/60 p-4 text-center text-sm text-muted-foreground">
+                            Nenhum lead nesta etapa.
+                          </div>
+                        ) : (
+                          leadsColuna.map((lead) => renderLeadCard(lead))
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -802,7 +1318,8 @@ function LeadsPage() {
               </div>
 
               <div>
-                <strong>Status:</strong> {leadSelecionado?.status ?? "—"}
+                <strong>Status:</strong>{" "}
+                {formatStatusLead(leadSelecionado?.status ?? null)}
               </div>
 
               <div>
@@ -844,9 +1361,52 @@ function LeadsPage() {
                   </a>
                 </Button>
 
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    atualizarStatusLead(
+                      leadSelecionado,
+                      "em_atendimento",
+                      "Continuar atendimento pelo WhatsApp"
+                    )
+                  }
+                  disabled={atualizarStatusMutation.isPending}
+                >
+                  <MessageSquare className="mr-2 size-4" />
+                  Em atendimento
+                </Button>
+
                 <Button variant="outline" onClick={abrirModalVisita}>
                   <CalendarClock className="mr-2 size-4" />
                   Marcar visita
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    atualizarStatusLead(
+                      leadSelecionado,
+                      "sem_resposta",
+                      "Tentar contato novamente"
+                    )
+                  }
+                  disabled={atualizarStatusMutation.isPending}
+                >
+                  Sem resposta
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    atualizarStatusLead(
+                      leadSelecionado,
+                      "perdido",
+                      "Lead encerrado"
+                    )
+                  }
+                  disabled={atualizarStatusMutation.isPending}
+                >
+                  Perdido
                 </Button>
 
                 <Button
