@@ -19,7 +19,6 @@ import {
   MessageCircle,
   Settings,
   LogOut,
-  Scissors,
   Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -90,8 +89,12 @@ function AuthenticatedLayout() {
         style={{ height: "100dvh", top: 0 }}
       >
         <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-          <div className="size-9 rounded-lg bg-primary text-primary-foreground grid place-items-center">
-            <Scissors className="size-4" />
+          <div className="grid size-11 shrink-0 place-items-center rounded-full bg-white p-1 shadow-sm ring-1 ring-primary/20">
+            <img
+              src="/logo-instituto.png"
+              alt="Instituto Moda e Costura"
+              className="size-9 rounded-full object-cover"
+            />
           </div>
 
           <div className="leading-tight">
@@ -115,7 +118,8 @@ function AuthenticatedLayout() {
                 to={item.to}
                 className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors data-[status=active]:bg-primary data-[status=active]:text-primary-foreground"
                 activeProps={{
-                  className: "bg-primary text-primary-foreground hover:bg-primary",
+                  className:
+                    "bg-primary text-primary-foreground hover:bg-primary",
                 }}
               >
                 <Icon className="size-4 shrink-0" />
@@ -155,7 +159,14 @@ function AuthenticatedLayout() {
           </button>
 
           <div className="flex items-center gap-2 font-display font-semibold">
-            <Scissors className="size-4 text-primary" />
+            <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white p-1 shadow-sm ring-1 ring-primary/20">
+              <img
+                src="/logo-instituto.png"
+                alt="Instituto Moda e Costura"
+                className="size-6 rounded-full object-cover"
+              />
+            </div>
+
             Instituto Moda e Costura
           </div>
 
