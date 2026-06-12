@@ -443,7 +443,7 @@ function Dashboard() {
       description: "Querem visitar, mas ainda sem data",
       icon: Target,
       tone: "accent",
-      to: "/leads",
+      to: "/leads?filtro=interesse_visita",
     },
     {
       label: "Turmas em alta ocupação",

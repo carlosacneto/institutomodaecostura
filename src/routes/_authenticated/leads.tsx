@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +35,9 @@ import { toast } from "sonner";
 import { callWebhook, loadWebhooks } from "@/lib/webhooks";
 
 export const Route = createFileRoute("/_authenticated/leads")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    filtro: typeof search.filtro === "string" ? search.filtro : undefined,
+  }),
   component: LeadsPage,
 });
 
@@ -113,6 +116,14 @@ type StatusLeadCanonico =
   | "sem_resposta"
   | "perdido";
 
+type FiltroOperacional =
+  | "todos"
+  | "interesse_visita"
+  | "alta_prioridade"
+  | "novos"
+  | "atendimento"
+  | "sem_resposta";
+
 type KanbanColumn = {
   id: KanbanColumnId;
   title: string;
@@ -167,6 +178,43 @@ const LARGURA_INICIAL_COLUNAS: Record<KanbanColumnId, number> = {
   sem_resposta: 280,
   perdido: 280,
 };
+
+const FILTROS_OPERACIONAIS: {
+  id: FiltroOperacional;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "todos",
+    label: "Todos",
+    description: "Todos os leads",
+  },
+  {
+    id: "interesse_visita",
+    label: "Interesse em visita",
+    description: "Querem visitar, mas ainda sem data marcada",
+  },
+  {
+    id: "alta_prioridade",
+    label: "Alta prioridade",
+    description: "Leads marcados como prioridade alta",
+  },
+  {
+    id: "novos",
+    label: "Novos",
+    description: "Leads que ainda não entraram em atendimento",
+  },
+  {
+    id: "atendimento",
+    label: "Em atendimento",
+    description: "Leads em conversa ativa",
+  },
+  {
+    id: "sem_resposta",
+    label: "Sem resposta",
+    description: "Leads aguardando retorno",
+  },
+];
 
 function normalizarTexto(valor: string | null | undefined) {
   return (valor ?? "")
@@ -296,6 +344,73 @@ function getLeadColumnId(lead: Lead): KanbanColumnId {
   return "novo";
 }
 
+function leadTemVisitaAgendada(lead: Lead) {
+  const status = normalizarTexto(lead.status);
+
+  return (
+    status === "visita_agendada" ||
+    status.includes("visita agendada") ||
+    Boolean(lead.visita_agendada_em)
+  );
+}
+
+function leadTemInteresseEmVisita(lead: Lead) {
+  if (leadTemVisitaAgendada(lead)) return false;
+
+  const intencao = normalizarTexto(lead.intencao);
+
+  return (
+    intencao.includes("visita") ||
+    intencao.includes("agend") ||
+    intencao.includes("reagend")
+  );
+}
+
+function normalizarFiltroOperacional(
+  filtro: string | null | undefined
+): FiltroOperacional {
+  if (
+    filtro === "interesse_visita" ||
+    filtro === "alta_prioridade" ||
+    filtro === "novos" ||
+    filtro === "atendimento" ||
+    filtro === "sem_resposta"
+  ) {
+    return filtro;
+  }
+
+  return "todos";
+}
+
+function leadPassaFiltroOperacional(
+  lead: Lead,
+  filtro: FiltroOperacional
+) {
+  if (filtro === "todos") return true;
+
+  if (filtro === "interesse_visita") {
+    return leadTemInteresseEmVisita(lead);
+  }
+
+  if (filtro === "alta_prioridade") {
+    return normalizarTexto(lead.prioridade).includes("alta");
+  }
+
+  if (filtro === "novos") {
+    return getLeadColumnId(lead) === "novo";
+  }
+
+  if (filtro === "atendimento") {
+    return getLeadColumnId(lead) === "atendimento";
+  }
+
+  if (filtro === "sem_resposta") {
+    return getLeadColumnId(lead) === "sem_resposta";
+  }
+
+  return true;
+}
+
 function formatDateTimeBR(value: string | null) {
   if (!value) return "—";
 
@@ -371,6 +486,8 @@ function getDataHojeISO() {
 
 function LeadsPage() {
   const queryClient = useQueryClient();
+  const { filtro } = Route.useSearch();
+  const filtroOperacional = normalizarFiltroOperacional(filtro);
 
   const [busca, setBusca] = useState("");
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null);
@@ -929,12 +1046,34 @@ function LeadsPage() {
     },
   });
 
+  const contadoresFiltros = useMemo(() => {
+    return {
+      todos: leadsPainel.length,
+      interesse_visita: leadsPainel.filter(leadTemInteresseEmVisita).length,
+      alta_prioridade: leadsPainel.filter((lead) =>
+        normalizarTexto(lead.prioridade).includes("alta")
+      ).length,
+      novos: leadsPainel.filter((lead) => getLeadColumnId(lead) === "novo")
+        .length,
+      atendimento: leadsPainel.filter(
+        (lead) => getLeadColumnId(lead) === "atendimento"
+      ).length,
+      sem_resposta: leadsPainel.filter(
+        (lead) => getLeadColumnId(lead) === "sem_resposta"
+      ).length,
+    } satisfies Record<FiltroOperacional, number>;
+  }, [leadsPainel]);
+
   const leadsFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
 
-    if (!termo) return leadsPainel;
-
     return leadsPainel.filter((lead) => {
+      if (!leadPassaFiltroOperacional(lead, filtroOperacional)) {
+        return false;
+      }
+
+      if (!termo) return true;
+
       const textoBusca = [
         lead.nome,
         lead.telefone,
@@ -955,7 +1094,7 @@ function LeadsPage() {
 
       return textoBusca.includes(termo);
     });
-  }, [leadsPainel, busca]);
+  }, [leadsPainel, busca, filtroOperacional]);
 
   const leadsPorColuna = useMemo(() => {
     const colunas: Record<KanbanColumnId, Lead[]> = {
@@ -989,6 +1128,10 @@ function LeadsPage() {
 
   const historicoAntigoSelecionado = formatHistorico(
     leadSelecionado?.historico ?? null
+  );
+
+  const filtroAtivo = FILTROS_OPERACIONAIS.find(
+    (item) => item.id === filtroOperacional
   );
 
   const larguraTotalKanban = useMemo(() => {
@@ -1352,6 +1495,36 @@ function LeadsPage() {
               className="pl-10"
             />
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            {FILTROS_OPERACIONAIS.map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant={filtroOperacional === item.id ? "default" : "outline"}
+                asChild
+              >
+                <Link
+                  to="/leads"
+                  search={item.id === "todos" ? {} : { filtro: item.id }}
+                  title={item.description}
+                >
+                  {item.label}
+                  <span className="ml-2 rounded-full bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
+                    {contadoresFiltros[item.id]}
+                  </span>
+                </Link>
+              </Button>
+            ))}
+          </div>
+
+          {filtroOperacional !== "todos" && filtroAtivo && (
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Filtro ativo: <strong>{filtroAtivo.label}</strong> —{" "}
+              {filtroAtivo.description}. Mostrando {leadsFiltrados.length} lead
+              {leadsFiltrados.length === 1 ? "" : "s"}.
+            </div>
+          )}
         </CardHeader>
 
         <CardContent>
