@@ -50,6 +50,7 @@ type Lead = {
   prioridade: string | null;
   criado_em: string | null;
   atualizado_em: string | null;
+  visita_agendada_em: string | null;
 };
 
 function normalizarValor(valor: number | null | undefined): number {
@@ -233,7 +234,7 @@ function Dashboard() {
         supabase
           .from("leads")
           .select(
-            "id, origem, status, intencao, prioridade, criado_em, atualizado_em"
+            "id, origem, status, intencao, prioridade, criado_em, atualizado_em, visita_agendada_em"
           ),
       ]);
 
@@ -273,15 +274,30 @@ function Dashboard() {
         return dataLead >= hoje && dataLead < amanha;
       });
 
-      const leadsAgendados = leadsData.filter((lead) => {
+      const leadsVisitaAgendada = leadsData.filter((lead) => {
         const status = textoNormalizado(lead.status);
-        const intencao = textoNormalizado(lead.intencao);
 
         return (
-          status.includes("agend") ||
-          status.includes("visita") ||
+          status === "visita_agendada" ||
+          status.includes("visita agendada") ||
+          Boolean(lead.visita_agendada_em)
+        );
+      });
+
+      const leadsInteresseVisita = leadsData.filter((lead) => {
+        const status = textoNormalizado(lead.status);
+        const intencao = textoNormalizado(lead.intencao);
+        const temVisitaAgendada =
+          status === "visita_agendada" ||
+          status.includes("visita agendada") ||
+          Boolean(lead.visita_agendada_em);
+
+        if (temVisitaAgendada) return false;
+
+        return (
+          intencao.includes("visita") ||
           intencao.includes("agend") ||
-          intencao.includes("visita")
+          intencao.includes("reagend")
         );
       });
 
@@ -331,6 +347,11 @@ function Dashboard() {
 
       const porOrigem = agruparPorCampo(leadsData, "origem", "Sem origem");
       const porStatus = agruparPorCampo(leadsData, "status", "Sem status");
+      const porIntencao = agruparPorCampo(
+        leadsData,
+        "intencao",
+        "Sem intenção"
+      );
 
       const porTurma = turmasAtivasData
         .map((turma: any) => {
@@ -369,7 +390,8 @@ function Dashboard() {
 
         leadsTotal: leadsData.length,
         leadsHoje: leadsHoje.length,
-        leadsAgendados: leadsAgendados.length,
+        leadsAgendados: leadsVisitaAgendada.length,
+        leadsInteresseVisita: leadsInteresseVisita.length,
         leadsAltaPrioridade: leadsAltaPrioridade.length,
         leadsPerdidos: leadsPerdidos.length,
         leadsMatriculados: leadsMatriculados.length,
@@ -378,6 +400,7 @@ function Dashboard() {
 
         porOrigem,
         porStatus,
+        porIntencao,
 
         porTurma,
         totalVinculos,
@@ -409,9 +432,17 @@ function Dashboard() {
     {
       label: "Visitas agendadas",
       value: data?.leadsAgendados ?? 0,
-      description: "Leads com status ou intenção de visita",
+      description: "Leads com visita realmente marcada",
       icon: CalendarCheck,
       tone: "success",
+      to: "/leads",
+    },
+    {
+      label: "Interesse em visita",
+      value: data?.leadsInteresseVisita ?? 0,
+      description: "Querem visitar, mas ainda sem data",
+      icon: Target,
+      tone: "accent",
       to: "/leads",
     },
     {
@@ -601,7 +632,7 @@ function Dashboard() {
         {renderStats(comercialStats)}
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-3">
         <Card className="border-border/60 shadow-[var(--shadow-soft)]">
           <CardHeader>
             <CardTitle className="font-display flex items-center gap-2">
@@ -677,6 +708,48 @@ function Dashboard() {
                       <Badge variant="secondary">
                         {item.total} lead{item.total === 1 ? "" : "s"}
                       </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-[var(--shadow-soft)]">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <MessageCircle className="size-5 text-primary" />
+              Leads por intenção
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {(data?.porIntencao ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma intenção encontrada.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {data!.porIntencao.slice(0, 7).map((item) => {
+                  const percent = percentual(item.total, data?.leadsTotal ?? 0);
+
+                  return (
+                    <div key={item.nome} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium">{item.nome}</span>
+                        <span className="text-muted-foreground">
+                          {item.total} lead{item.total === 1 ? "" : "s"} ·{" "}
+                          {percent}%
+                        </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${Math.max(percent, 4)}%` }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
