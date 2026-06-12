@@ -32,6 +32,7 @@ import {
 import { Plus, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL, formatDate, today } from "@/lib/format";
+import { callWebhook, loadWebhooks } from "@/lib/webhooks";
 
 export const Route = createFileRoute("/_authenticated/mensalidades")({
   component: MensalidadesPage,
@@ -66,15 +67,11 @@ function limparTelefoneWhatsApp(telefone: string | null | undefined) {
   return `55${numeros}`;
 }
 
-function montarLinkCobrancaWhatsApp(mensalidade: Mensalidade) {
-  const telefone = limparTelefoneWhatsApp(mensalidade.telefone);
-
-  if (!telefone) return null;
-
+function montarMensagemCobranca(mensalidade: Mensalidade) {
   const nomeCompleto = mensalidade.nome_aluno?.trim() || "aluno";
   const primeiroNome = nomeCompleto.split(" ")[0] || "aluno";
 
-  const mensagem = [
+  return [
     `Olá ${primeiroNome}, tudo bem?`,
     "",
     "Passando para lembrar sobre sua mensalidade do Instituto Moda e Costura.",
@@ -95,8 +92,35 @@ function montarLinkCobrancaWhatsApp(mensalidade: Mensalidade) {
   ]
     .filter(Boolean)
     .join("\n");
+}
 
-  return `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+function montarPayloadCobranca(mensalidade: Mensalidade) {
+  const telefoneWhatsApp = limparTelefoneWhatsApp(mensalidade.telefone);
+  const status = mensalidade.status ?? "pendente";
+  const vencimento = mensalidade.data_vencimento ?? "";
+  const vencida = status !== "pago" && vencimento < today();
+
+  return {
+    id: mensalidade.id,
+    aluno_id: mensalidade.aluno_id,
+    nome_aluno: mensalidade.nome_aluno,
+    telefone: mensalidade.telefone,
+    telefone_whatsapp: telefoneWhatsApp,
+    turma: mensalidade.turma,
+    valor: mensalidade.valor,
+    valor_formatado: formatBRL(Number(mensalidade.valor ?? 0)),
+    data_vencimento: mensalidade.data_vencimento,
+    vencimento_formatado: mensalidade.data_vencimento
+      ? formatDate(mensalidade.data_vencimento)
+      : null,
+    status,
+    vencida,
+    data_pagamento: mensalidade.data_pagamento ?? null,
+    observacoes: mensalidade.observacoes ?? null,
+    tipo: mensalidade.tipo ?? null,
+    referencia: mensalidade.referencia ?? null,
+    mensagem: montarMensagemCobranca(mensalidade),
+  };
 }
 
 function MensalidadesPage() {
@@ -199,6 +223,79 @@ function MensalidadesPage() {
     },
   });
 
+  const cobrarIndividual = useMutation({
+    mutationFn: async (mensalidade: Mensalidade) => {
+      const url = loadWebhooks().cobrancaIndividual;
+      const payloadMensalidade = montarPayloadCobranca(mensalidade);
+
+      if (!payloadMensalidade.telefone_whatsapp) {
+        throw new Error("Telefone inválido ou não informado para cobrança.");
+      }
+
+      await callWebhook(url, {
+        tipo: "cobranca_individual",
+        origem: "dashboard_mensalidades",
+        mensalidade: payloadMensalidade,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Cobrança enviada para o n8n");
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  const cobrarLote = useMutation({
+    mutationFn: async (mensalidades: Mensalidade[]) => {
+      const url = loadWebhooks().cobrancaLote;
+      const mensalidadesValidas = mensalidades
+        .map(montarPayloadCobranca)
+        .filter((m) => m.status !== "pago" && !!m.telefone_whatsapp);
+
+      if (mensalidadesValidas.length === 0) {
+        throw new Error("Nenhuma mensalidade pendente/vencida com telefone válido para cobrar.");
+      }
+
+      await callWebhook(url, {
+        tipo: "cobranca_lote",
+        origem: "dashboard_mensalidades",
+        filtro,
+        total: mensalidadesValidas.length,
+        mensalidades: mensalidadesValidas,
+      });
+    },
+    onSuccess: (_, mensalidades) => {
+      const total = mensalidades
+        .map(montarPayloadCobranca)
+        .filter((m) => m.status !== "pago" && !!m.telefone_whatsapp).length;
+
+      toast.success(`Cobrança em lote enviada para o n8n (${total} mensalidade${total === 1 ? "" : "s"})`);
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+    },
+  });
+
+  function handleCobrarLote() {
+    const mensalidadesParaCobrar = filtradas.filter((m) => (m.status ?? "pendente") !== "pago");
+
+    if (mensalidadesParaCobrar.length === 0) {
+      toast.error("Nenhuma mensalidade pendente ou vencida na lista atual.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Enviar cobrança em lote para ${mensalidadesParaCobrar.length} mensalidade${
+        mensalidadesParaCobrar.length === 1 ? "" : "s"
+      } da lista atual?`
+    );
+
+    if (!confirmar) return;
+
+    cobrarLote.mutate(mensalidadesParaCobrar);
+  }
+
   function handleDesfazerPagamento(mensalidade: Mensalidade) {
     const confirmar = window.confirm(
       `Deseja desfazer o pagamento de ${mensalidade.nome_aluno ?? "este aluno"}?`
@@ -221,10 +318,21 @@ function MensalidadesPage() {
           </p>
         </div>
 
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="size-4 mr-2" />
-          Nova mensalidade
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCobrarLote}
+            disabled={cobrarLote.isPending || filtradas.every((m) => (m.status ?? "pendente") === "pago")}
+          >
+            <Send className="size-4 mr-2" />
+            {cobrarLote.isPending ? "Enviando lote..." : "Cobrar lote"}
+          </Button>
+
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="size-4 mr-2" />
+            Nova mensalidade
+          </Button>
+        </div>
       </header>
 
       <Card className="border-border/60 shadow-[var(--shadow-soft)]">
@@ -297,7 +405,7 @@ function MensalidadesPage() {
                     const status = m.status ?? "pendente";
                     const vencimento = m.data_vencimento ?? "";
                     const vencida = status !== "pago" && vencimento < today();
-                    const linkCobranca = montarLinkCobrancaWhatsApp(m);
+                    const telefoneWhatsApp = limparTelefoneWhatsApp(m.telefone);
 
                     return (
                       <TableRow key={m.id}>
@@ -333,17 +441,20 @@ function MensalidadesPage() {
 
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {status !== "pago" && linkCobranca && (
-                              <Button size="sm" variant="outline" asChild>
-                                <a
-                                  href={linkCobranca}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title="Cobrar pelo WhatsApp"
-                                >
-                                  <Send className="mr-2 size-4" />
-                                  Cobrar
-                                </a>
+                            {status !== "pago" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => cobrarIndividual.mutate(m)}
+                                disabled={cobrarIndividual.isPending || !telefoneWhatsApp}
+                                title={
+                                  telefoneWhatsApp
+                                    ? "Cobrar pelo WhatsApp"
+                                    : "Telefone inválido ou não informado"
+                                }
+                              >
+                                <Send className="mr-2 size-4" />
+                                {cobrarIndividual.isPending ? "Enviando..." : "Cobrar"}
                               </Button>
                             )}
 

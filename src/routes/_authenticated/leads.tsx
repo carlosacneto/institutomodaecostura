@@ -32,13 +32,14 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { callWebhook, loadWebhooks } from "@/lib/webhooks";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
 });
 
-const WEBHOOK_ENVIAR_WHATSAPP =
-  "https://thirstygull-n8n.cloudfy.live/webhook/enviar-whatsapp-crm";
+const WEBHOOK_ENVIAR_WHATSAPP_PADRAO =
+  "https://n8n.institutomodaecostura.com.br/webhook/enviar-whatsapp-crm";
 
 type Lead = {
   id: string;
@@ -555,23 +556,15 @@ function LeadsPage() {
         throw new Error("Digite uma mensagem antes de enviar.");
       }
 
-      const response = await fetch(WEBHOOK_ENVIAR_WHATSAPP, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          lead_id: leadSelecionado.id,
-          nome: leadSelecionado.nome || "Lead",
-          telefone: leadSelecionado.telefone,
-          mensagem,
-        }),
-      });
+      const cfg = loadWebhooks();
+      const webhookUrl = cfg.envioWhatsAppCrm || WEBHOOK_ENVIAR_WHATSAPP_PADRAO;
 
-      if (!response.ok) {
-        const textoErro = await response.text();
-        throw new Error(textoErro || "Erro ao enviar mensagem pelo WhatsApp.");
-      }
+      await callWebhook(webhookUrl, {
+        lead_id: leadSelecionado.id,
+        nome: leadSelecionado.nome || "Lead",
+        telefone: leadSelecionado.telefone,
+        mensagem,
+      });
 
       return true;
     },
