@@ -105,7 +105,7 @@ function AuthPage() {
 
           <p className="max-w-md text-primary-foreground/80">
             Alunos, turmas, mensalidades e cobranças automatizadas — num só
-            lugar, com a calma de um bom atelier.
+            lugar, com a calma de uma boa escola.
           </p>
         </div>
 
