@@ -110,7 +110,7 @@ function AuthPage() {
         </div>
 
         <p className="text-sm text-primary-foreground/70">
-          © Instituto Moda e Costura · {new Date().getFullYear()}
+          © Instituto Moda e Costura ·  2010
         </p>
       </div>
 
